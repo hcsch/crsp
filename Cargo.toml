@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "crsp-base",
+    "crsp"
+]
+
+[profile.release]
+lto = "thin"
