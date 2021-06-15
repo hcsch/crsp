@@ -4,7 +4,7 @@ use rand::random;
 use thiserror::Error;
 
 use crate::{
-    graphics::font_4x5::SPRITE_4X5_FONT_ROUND,
+    graphics::font_4x5::Font,
     instruction::{Instruction, InvalidInstructionNibblesError},
 };
 
@@ -13,15 +13,6 @@ mod data_register;
 mod test;
 
 pub use data_register::DataRegister;
-
-#[derive(Debug, PartialEq, Eq, Error)]
-pub enum ProcessorInitError {
-    #[error(
-        "a program with a length ({program_len:X}) greater than the usable length of memory ({:X}) was supplied",
-        Processor::MAX_USABLE_MEMORY_LEN
-    )]
-    ProgramExceedsUsableMemoryLen { program_len: usize },
-}
 
 #[derive(Debug, PartialEq, Eq, Error)]
 pub enum ProcessorError {
@@ -73,6 +64,13 @@ impl CallStack {
     }
 }
 
+impl From<Vec<u16>> for CallStack {
+    fn from(vec: Vec<u16>) -> Self {
+        let max_len = vec.capacity();
+        Self { vec, max_len }
+    }
+}
+
 impl Default for CallStack {
     fn default() -> Self {
         Self::new_with_max_len(128)
@@ -82,7 +80,6 @@ impl Default for CallStack {
 // TODO: add screen and sprite handling
 // TODO: add delay and sound timer handling
 // TODO: add sound handling
-// TODO: add font selection
 // TODO: consider supporting S-CHIP as well
 #[derive(Debug, PartialEq, Eq)]
 pub struct Processor {
@@ -98,16 +95,7 @@ pub struct Processor {
 
 impl Default for Processor {
     fn default() -> Self {
-        Self {
-            data_registers: [0; 16],
-            address_register: 0,
-            memory: Self::init_memory(None).unwrap(),
-            program_counter: 0x200,
-            call_stack: CallStack::default(),
-            delay_timer: 0,
-            sound_timer: 0,
-            screen: [0; 64 * 23],
-        }
+        ProcessorBuilder::new().build()
     }
 }
 
@@ -119,38 +107,6 @@ impl Processor {
     /// with the sum of the address in special address register `I`
     /// and the number of the `last_register` greater than [`u16::MAX`].
     pub const MAX_USABLE_MEMORY_LEN: usize = u16::MAX as usize + 1;
-
-    fn init_memory(
-        program: Option<&[u8]>,
-    ) -> Result<[u8; Self::MAX_USABLE_MEMORY_LEN], ProcessorInitError> {
-        let mut memory = [0; Self::MAX_USABLE_MEMORY_LEN];
-        memory[0..SPRITE_4X5_FONT_ROUND.len()].copy_from_slice(&SPRITE_4X5_FONT_ROUND);
-
-        if let Some(program) = program {
-            if program.len() > Self::MAX_USABLE_MEMORY_LEN {
-                return Err(ProcessorInitError::ProgramExceedsUsableMemoryLen {
-                    program_len: program.len(),
-                });
-            }
-
-            memory[SPRITE_4X5_FONT_ROUND.len()..program.len()].copy_from_slice(program);
-        }
-
-        Ok(memory)
-    }
-
-    // TODO: consider taking an iterator as input
-    /// Constructs a new [`Processor`] with the program in its memory.
-    ///
-    /// The program is copied in such that the first element is at address 0x0,
-    /// but the first 80 elements are overwritten with sprite font data.
-    /// This way the index of bytes in the program represents the address in memory.
-    pub fn new_with_program(program: &[u8]) -> Result<Self, ProcessorInitError> {
-        return Ok(Self {
-            memory: Self::init_memory(Some(program))?,
-            ..Self::default()
-        });
-    }
 
     /// Get the value of a data register
     const fn get_register(&self, register: DataRegister) -> u8 {
@@ -426,5 +382,69 @@ impl Processor {
         }
 
         Ok(())
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Error)]
+pub enum ProcessorBuilderError {
+    #[error(
+        "a program with a length ({program_len:X}) greater than the usable length of memory ({:X}) was supplied",
+        Processor::MAX_USABLE_MEMORY_LEN
+    )]
+    ProgramExceedsUsableMemoryLen { program_len: usize },
+}
+
+pub struct ProcessorBuilder {
+    /// The partially initialized processor
+    processor: Processor,
+    font: Font,
+}
+
+impl ProcessorBuilder {
+    pub fn new() -> Self {
+        Self {
+            processor: Processor {
+                data_registers: [0; 16],
+                address_register: 0,
+                memory: [0; Processor::MAX_USABLE_MEMORY_LEN],
+                program_counter: 0x200,
+                call_stack: CallStack::default(),
+                delay_timer: 0,
+                sound_timer: 0,
+                screen: [0; 64 * 23],
+            },
+            font: Font::default(),
+        }
+    }
+
+    // TODO: consider taking an iterator as input
+    /// Copies the program into the processors memory
+    /// in such that the first element is at address 0x0.
+    /// This way the index of bytes in the program represents the address in memory.
+    /// IMPORTANT: The first [`Font::LEN`] elements are overwritten with sprite font data
+    ///            and are therefore not usable for program data.
+    pub fn program(mut self, program: &[u8]) -> Result<Self, ProcessorBuilderError> {
+        if program.len() > Processor::MAX_USABLE_MEMORY_LEN {
+            return Err(ProcessorBuilderError::ProgramExceedsUsableMemoryLen {
+                program_len: program.len(),
+            });
+        }
+
+        self.processor.memory[Font::LEN..program.len()].copy_from_slice(program);
+
+        Ok(self)
+    }
+
+    /// Set the font the processor should use.
+    /// The font will be stored in processor memory starting at address 0x0.
+    /// See also [`Font`].
+    pub fn font(mut self, font: Font) -> Self {
+        self.font = font;
+        self
+    }
+
+    pub fn build(mut self) -> Processor {
+        self.processor.memory[0..Font::LEN].copy_from_slice(self.font.bytes());
+        self.processor
     }
 }
