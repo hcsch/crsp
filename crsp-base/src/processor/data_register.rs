@@ -5,7 +5,7 @@ use static_assertions::const_assert;
 
 use crate::nibble_ints::U4;
 
-/// Data register of the CHIP-8 processor
+/// Data register of the CHIP-8 processor.
 #[derive(
     Debug,
     Clone,
@@ -47,14 +47,14 @@ const_assert!(std::mem::variant_count::<DataRegister>() == U4::MAX.into_u8() as 
 
 impl From<DataRegister> for U4 {
     fn from(reg: DataRegister) -> Self {
-        // SAFETY: DataRegister exactly U4::MAX + 1 variants, i.e the discriminator fits in the low nibble
+        // SAFETY: DataRegister has exactly U4::MAX + 1 variants, i.e the discriminant fits in the low nibble.
         unsafe { U4::from_u8_unchecked(reg as u8) }
     }
 }
 
 impl From<U4> for DataRegister {
     fn from(val: U4) -> Self {
-        // SAFETY: DataRegister exactly U4::MAX + 1 variants
+        // SAFETY: DataRegister has exactly U4::MAX + 1 variants.
         unsafe { DataRegister::from_unchecked(u8::from(val)) }
     }
 }
