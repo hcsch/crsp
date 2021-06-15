@@ -108,11 +108,12 @@ impl Processor {
     /// and the number of the `last_register` greater than [`u16::MAX`].
     pub const MAX_USABLE_MEMORY_LEN: usize = u16::MAX as usize + 1;
 
-    /// Get the value of a data register
+    /// Get the value of a data register.
     const fn get_register(&self, register: DataRegister) -> u8 {
         self.data_registers[register as u8 as usize]
     }
 
+    /// Set the value of a data register.
     fn set_register(&mut self, register: DataRegister, val: u8) {
         self.data_registers[register as u8 as usize] = val;
     }
