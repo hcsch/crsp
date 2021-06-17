@@ -9,10 +9,12 @@ use crate::{
 };
 
 mod data_register;
+mod key;
 #[cfg(test)]
 mod test;
 
 pub use data_register::DataRegister;
+pub use key::{Key, KeyState};
 
 #[derive(Debug, PartialEq, Eq, Error)]
 pub enum ProcessorError {
@@ -26,6 +28,11 @@ pub enum ProcessorError {
     NotAHexChar {
         program_counter: u16,
         requested_sprite_id: u8,
+    },
+    #[error("a key with an invalid (greater than 0xF) key id {requested_key_id:X} was referenced at {program_counter:X}")]
+    NotAValidKey {
+        program_counter: u16,
+        requested_key_id: u8,
     },
     #[error(transparent)]
     InvalidInstructionNibblesError(#[from] InvalidInstructionNibblesError),
@@ -77,6 +84,12 @@ impl Default for CallStack {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum KeyWaitingState {
+    NotWaiting,
+    Waiting { target_register: DataRegister },
+}
+
 // TODO: add screen and sprite handling
 // TODO: add delay and sound timer handling
 // TODO: add sound handling
@@ -91,6 +104,8 @@ pub struct Processor {
     delay_timer: u8,
     sound_timer: u8,
     screen: [u8; 64 * 23],
+    key_states: [KeyState; std::mem::variant_count::<Key>()],
+    waiting_for_keypress: KeyWaitingState,
 }
 
 impl Default for Processor {
@@ -116,6 +131,24 @@ impl Processor {
     /// Set the value of a data register.
     fn set_register(&mut self, register: DataRegister, val: u8) {
         self.data_registers[register as u8 as usize] = val;
+    }
+
+    /// Get the state of a key.
+    pub const fn get_key_state(&self, key: Key) -> KeyState {
+        self.key_states[key as u8 as usize]
+    }
+
+    /// Set the state of a key.
+    pub fn set_key_state(&mut self, key: Key, state: KeyState) {
+        // TODO: possibly replace with if let chain once let_chains (eRFC 2497) work
+        match self.waiting_for_keypress {
+            KeyWaitingState::Waiting { target_register } if state == KeyState::Pressed => {
+                self.waiting_for_keypress = KeyWaitingState::NotWaiting;
+                self.set_register(target_register, key as u8);
+            }
+            _ => (),
+        }
+        self.key_states[key as u8 as usize] = state;
     }
 
     pub fn step(&mut self) -> Result<(), ProcessorError> {
@@ -309,10 +342,45 @@ impl Processor {
                 position_y_register,
                 last_sprite_byte,
             } => todo!(),
-            Instruction::SkipIfKeyPressed { key_register } => todo!(),
-            Instruction::SkipIfKeyNotPressed { key_register } => todo!(),
+            Instruction::SkipIfKeyPressed { key_register } => {
+                let key_id = self.get_register(key_register);
+                if let Ok(key) = Key::try_from(key_id) {
+                    if self.get_key_state(key) == KeyState::Pressed {
+                        self.program_counter = self
+                            .program_counter
+                            .wrapping_add(2 * std::mem::size_of::<u16>() as u16);
+
+                        was_control_flow_instr = true;
+                    }
+                } else {
+                    return Err(ProcessorError::NotAValidKey {
+                        program_counter: self.program_counter,
+                        requested_key_id: key_id,
+                    });
+                }
+            }
+            Instruction::SkipIfKeyNotPressed { key_register } => {
+                let key_id = self.get_register(key_register);
+                if let Ok(key) = Key::try_from(key_id) {
+                    if self.get_key_state(key) == KeyState::NotPressed {
+                        self.program_counter = self
+                            .program_counter
+                            .wrapping_add(2 * std::mem::size_of::<u16>() as u16);
+
+                        was_control_flow_instr = true;
+                    }
+                } else {
+                    return Err(ProcessorError::NotAValidKey {
+                        program_counter: self.program_counter,
+                        requested_key_id: key_id,
+                    });
+                }
+            }
             Instruction::AssignDelayTimerVal { target_register } => todo!(),
-            Instruction::WaitForKeyPress { target_register } => todo!(),
+            Instruction::WaitForKeyPress { target_register } => {
+                self.waiting_for_keypress = KeyWaitingState::Waiting { target_register };
+                todo!()
+            }
             Instruction::SetDelayTimer { source_register } => todo!(),
             Instruction::SetSoundTimer { source_register } => todo!(),
             Instruction::AddAssignI { source_register } => {
@@ -413,6 +481,8 @@ impl ProcessorBuilder {
                 delay_timer: 0,
                 sound_timer: 0,
                 screen: [0; 64 * 23],
+                key_states: [KeyState::NotPressed; 16],
+                waiting_for_keypress: KeyWaitingState::NotWaiting,
             },
             font: Font::default(),
         }

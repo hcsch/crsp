@@ -534,6 +534,86 @@ mod step {
 
     // TODO: figure out a good way to unit test Instruction::AssignRandomMasked
 
+    mod instrs_skip_if_key {
+        use super::*;
+
+        macro_rules! generate_test {
+            ($mod_name:ident, $instr_name:ident, negated: $negated:literal) => {
+                mod $mod_name {
+                    use super::*;
+
+                    #[test]
+                    fn case_not_pressed() {
+                        let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
+                        let instruction_bytes = <[u8; 2]>::from(Instruction::$instr_name {
+                            key_register: DataRegister::V3,
+                        });
+                        program[0x200..=0x201].copy_from_slice(&instruction_bytes);
+
+                        let mut data_registers = [0; 16];
+                        data_registers[DataRegister::V3 as u8 as usize] = 0x0B;
+
+                        let mut processor = Processor {
+                            data_registers,
+                            memory: program.clone(),
+                            ..Processor::default()
+                        };
+
+                        processor.step().unwrap();
+
+                        assert_eq!(
+                            processor,
+                            Processor {
+                                data_registers,
+                                memory: program,
+                                program_counter: if $negated { 0x204 } else { 0x202 },
+                                ..Processor::default()
+                            }
+                        );
+                    }
+
+                    #[test]
+                    fn case_pressed() {
+                        let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
+                        let instruction_bytes = <[u8; 2]>::from(Instruction::$instr_name {
+                            key_register: DataRegister::V3,
+                        });
+                        program[0x200..=0x201].copy_from_slice(&instruction_bytes);
+
+                        let mut data_registers = [0; 16];
+                        data_registers[DataRegister::V3 as u8 as usize] = Key::KB as u8;
+
+                        let mut key_states = [KeyState::NotPressed; 16];
+                        key_states[Key::KB as u8 as usize] = KeyState::Pressed;
+
+                        let mut processor = Processor {
+                            data_registers,
+                            memory: program.clone(),
+                            key_states: key_states,
+                            ..Processor::default()
+                        };
+
+                        processor.step().unwrap();
+
+                        assert_eq!(
+                            processor,
+                            Processor {
+                                data_registers,
+                                memory: program,
+                                program_counter: if $negated { 0x202 } else { 0x204 },
+                                key_states: key_states,
+                                ..Processor::default()
+                            }
+                        );
+                    }
+                }
+            };
+        }
+
+        generate_test!(pressed, SkipIfKeyPressed, negated: false);
+        generate_test!(not_pressed, SkipIfKeyNotPressed, negated: true);
+    }
+
     mod instr_add_assign_i {
         use super::*;
 
