@@ -121,14 +121,14 @@ impl Default for PartialOffscreenDrawing {
 }
 
 impl PartialOffscreenDrawing {
-    pub fn wrap_x(self) -> bool {
+    pub fn should_wrap_x(self) -> bool {
         match self {
             Self::WrapXY | Self::WrapXClipY => true,
             _ => false,
         }
     }
 
-    pub fn wrap_y(self) -> bool {
+    pub fn should_wrap_y(self) -> bool {
         match self {
             Self::WrapXY | Self::ClipXWrapY => true,
             _ => false,
@@ -446,7 +446,7 @@ impl Processor {
                     // Wrap y if we should, else we're done for the entire sprite.
                     let y = if y + i < Self::SCREEN_HEIGHT as usize
                         || (y + i >= Self::SCREEN_HEIGHT as usize
-                            && self.partial_offscreen_drawing.wrap_y())
+                            && self.partial_offscreen_drawing.should_wrap_y())
                     {
                         (y + i) % Self::SCREEN_HEIGHT as usize
                     } else {
@@ -464,7 +464,7 @@ impl Processor {
                     // We're also done if the next byte is offscreen and we shouldn't wrap in X.
                     if x % 8 == 0
                         || (x + 7 >= Self::SCREEN_WIDTH as usize
-                            && !self.partial_offscreen_drawing.wrap_x())
+                            && !self.partial_offscreen_drawing.should_wrap_x())
                     {
                         continue;
                     }
