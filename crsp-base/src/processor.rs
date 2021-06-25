@@ -344,7 +344,7 @@ impl Processor {
             Instruction::DrawSprite {
                 position_x_register,
                 position_y_register,
-                last_sprite_byte,
+                last_sprite_byte_offset,
             } => todo!(),
             Instruction::SkipIfKeyPressed { key_register } => {
                 let key_id = self.get_register(key_register);
