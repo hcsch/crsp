@@ -33,6 +33,61 @@ mod step {
         };
     }
 
+    mod instr_call_machine_subroutine {
+        use super::*;
+
+        #[test]
+        fn case_skip() {
+            let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
+            let instruction_bytes = <[u8; 2]>::from(Instruction::CallMachineSubroutine {
+                target_address: U12::try_from(0x000).unwrap(),
+            });
+            program[0x200..=0x201].copy_from_slice(&instruction_bytes);
+
+            let mut processor = Processor {
+                memory: program.clone(),
+                program_counter: 0x200,
+                skip_call_machine_subroutine: true,
+                ..Processor::default()
+            };
+
+            processor.step().unwrap();
+
+            assert_eq!(
+                processor,
+                Processor {
+                    memory: program,
+                    program_counter: 0x202,
+                    skip_call_machine_subroutine: true,
+                    ..Processor::default()
+                }
+            );
+        }
+
+        #[test]
+        fn case_err() {
+            let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
+            let instruction_bytes = <[u8; 2]>::from(Instruction::CallMachineSubroutine {
+                target_address: U12::try_from(0x000).unwrap(),
+            });
+            program[0x200..=0x201].copy_from_slice(&instruction_bytes);
+
+            let mut processor = Processor {
+                memory: program.clone(),
+                program_counter: 0x200,
+                skip_call_machine_subroutine: false,
+                ..Processor::default()
+            };
+
+            assert_eq!(
+                processor.step(),
+                Err(ProcessorError::CallMachineSubroutineUnsupported {
+                    program_counter: 0x200
+                }) as Result<(), _>
+            );
+        }
+    }
+
     mod instr_return {
         use super::*;
 

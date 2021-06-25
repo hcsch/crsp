@@ -229,6 +229,10 @@ define_instruction! {
         ClearDisplay = (0x0, 0x0, 0xE, 0x0),
         /// Return from a subroutine.
         Return = (0x0, 0x0, 0xE, 0xE),
+        /// Calls the machine code subroutine at the `target_address`.
+        ///
+        /// *This instruction is not supported by this emulator.*
+        CallMachineSubroutine { target_address: U12 } = (0x0, target_address),
         /// Jump to the `target_address`.
         Jump { target_address: U12 } = (0x1, target_address),
         /// Call the subroutine at the `target_address`.
@@ -434,7 +438,7 @@ mod test {
 
         #[test]
         fn case_err() {
-            let instr_bytes = [0x00_u8, 0x00];
+            let instr_bytes = [0xFF_u8, 0xFF];
 
             assert_eq!(
                 Instruction::try_from(instr_bytes),

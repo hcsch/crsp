@@ -34,6 +34,8 @@ pub enum ProcessorError {
         program_counter: u16,
         requested_key_id: u8,
     },
+    #[error("call to machine subroutine requested at {program_counter:X}, this is unsupported")]
+    CallMachineSubroutineUnsupported { program_counter: u16 },
     #[error(transparent)]
     InvalidInstructionNibblesError(#[from] InvalidInstructionNibblesError),
 }
@@ -153,6 +155,7 @@ pub struct Processor {
     key_states: [KeyState; std::mem::variant_count::<Key>()],
     waiting_for_keypress: KeyWaitingState,
     partial_offscreen_drawing: PartialOffscreenDrawing,
+    skip_call_machine_subroutine: bool,
 }
 
 impl Default for Processor {
@@ -263,6 +266,13 @@ impl Processor {
                         })?;
 
                 was_control_flow_instr = true;
+            }
+            Instruction::CallMachineSubroutine { .. } => {
+                if !self.skip_call_machine_subroutine {
+                    return Err(ProcessorError::CallMachineSubroutineUnsupported {
+                        program_counter: self.program_counter,
+                    });
+                }
             }
             Instruction::Jump { target_address } => {
                 self.program_counter = target_address.into();
@@ -624,6 +634,7 @@ impl ProcessorBuilder {
                 key_states: [KeyState::default(); 16],
                 waiting_for_keypress: KeyWaitingState::default(),
                 partial_offscreen_drawing: PartialOffscreenDrawing::default(),
+                skip_call_machine_subroutine: true,
             },
             font: Font::default(),
         }
@@ -662,6 +673,13 @@ impl ProcessorBuilder {
         partial_offscreen_drawing: PartialOffscreenDrawing,
     ) -> Self {
         self.processor.partial_offscreen_drawing = partial_offscreen_drawing;
+        self
+    }
+
+    /// Make the processor skip [`Instruction::CallMachineSubroutine`] instructions
+    /// instead of returning an error.
+    pub fn skip_call_machine_subroutine(mut self) -> Self {
+        self.processor.skip_call_machine_subroutine = true;
         self
     }
 
