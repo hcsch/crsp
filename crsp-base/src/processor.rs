@@ -376,13 +376,19 @@ impl Processor {
                     });
                 }
             }
-            Instruction::AssignDelayTimerVal { target_register } => todo!(),
+            Instruction::AssignDelayTimerVal { target_register } => {
+                self.set_register(target_register, self.delay_timer)
+            }
             Instruction::WaitForKeyPress { target_register } => {
                 self.waiting_for_keypress = KeyWaitingState::Waiting { target_register };
                 todo!()
             }
-            Instruction::SetDelayTimer { source_register } => todo!(),
-            Instruction::SetSoundTimer { source_register } => todo!(),
+            Instruction::SetDelayTimer { source_register } => {
+                self.delay_timer = self.get_register(source_register)
+            }
+            Instruction::SetSoundTimer { source_register } => {
+                self.sound_timer = self.get_register(source_register)
+            }
             Instruction::AddAssignI { source_register } => {
                 self.address_register = self
                     .address_register

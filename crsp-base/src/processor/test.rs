@@ -614,6 +614,99 @@ mod step {
         generate_test!(not_pressed, SkipIfKeyNotPressed, negated: true);
     }
 
+    #[test]
+    fn instr_assign_delay_timer_val() {
+        let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
+        let instruction_bytes = <[u8; 2]>::from(Instruction::AssignDelayTimerVal {
+            target_register: DataRegister::V4,
+        });
+        program[0x200..=0x201].copy_from_slice(&instruction_bytes);
+
+        let mut processor = Processor {
+            memory: program.clone(),
+            delay_timer: 0x2A,
+            ..Processor::default()
+        };
+
+        processor.step().unwrap();
+
+        let mut expected_data_registers = [0; 16];
+        expected_data_registers[DataRegister::V4 as u8 as usize] = 0x2A;
+
+        assert_eq!(
+            processor,
+            Processor {
+                data_registers: expected_data_registers,
+                memory: program,
+                program_counter: 0x202,
+                delay_timer: 0x2A,
+                ..Processor::default()
+            }
+        );
+    }
+
+    #[test]
+    fn instr_set_delay_timer() {
+        let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
+        let instruction_bytes = <[u8; 2]>::from(Instruction::SetDelayTimer {
+            source_register: DataRegister::V8,
+        });
+        program[0x200..=0x201].copy_from_slice(&instruction_bytes);
+
+        let mut data_registers = [0; 16];
+        data_registers[DataRegister::V8 as u8 as usize] = 0x2A;
+
+        let mut processor = Processor {
+            data_registers,
+            memory: program.clone(),
+            ..Processor::default()
+        };
+
+        processor.step().unwrap();
+
+        assert_eq!(
+            processor,
+            Processor {
+                data_registers,
+                memory: program,
+                program_counter: 0x202,
+                delay_timer: 0x2A,
+                ..Processor::default()
+            }
+        );
+    }
+
+    #[test]
+    fn instr_set_sound_timer() {
+        let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
+        let instruction_bytes = <[u8; 2]>::from(Instruction::SetSoundTimer {
+            source_register: DataRegister::V8,
+        });
+        program[0x200..=0x201].copy_from_slice(&instruction_bytes);
+
+        let mut data_registers = [0; 16];
+        data_registers[DataRegister::V8 as u8 as usize] = 0x2A;
+
+        let mut processor = Processor {
+            data_registers,
+            memory: program.clone(),
+            ..Processor::default()
+        };
+
+        processor.step().unwrap();
+
+        assert_eq!(
+            processor,
+            Processor {
+                data_registers,
+                memory: program,
+                program_counter: 0x202,
+                sound_timer: 0x2A,
+                ..Processor::default()
+            }
+        );
+    }
+
     mod instr_add_assign_i {
         use super::*;
 
