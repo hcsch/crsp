@@ -922,14 +922,14 @@ mod step {
 
             let mut processor = Processor {
                 data_registers,
-                address_register: 0x350,
+                address_register: u16::MAX - 8,
                 memory: program.clone(),
                 ..Processor::default()
             };
 
             let mut expected_memory = program;
             for i in 0x0..=0x8 {
-                expected_memory[0x350 + i] = i as u8;
+                expected_memory[u16::MAX as usize - 8 + i] = i as u8;
             }
 
             processor.step().unwrap();
@@ -938,7 +938,7 @@ mod step {
                 processor,
                 Processor {
                     data_registers,
-                    address_register: 0x359,
+                    address_register: 0, // (u16::MAX - 8) + 8 + 1
                     memory: expected_memory,
                     program_counter: 0x202,
                     ..Processor::default()
@@ -961,7 +961,7 @@ mod step {
 
             let mut processor = Processor {
                 data_registers,
-                address_register: u16::MAX - (8 - 2), // make the store of the last register an OOB access
+                address_register: u16::MAX - (8 - 1), // make the store of the last register an OOB access
                 memory: program,
                 ..Processor::default()
             };
@@ -985,15 +985,15 @@ mod step {
                 last_register: DataRegister::V8,
             });
             program[0x200..=0x201].copy_from_slice(&instruction_bytes);
-            for i in 0x0..=0xF {
-                program[0x350 + i] = i as u8;
+            for i in 0x0..=0x8 {
+                program[u16::MAX as usize - 8 + i] = i as u8;
             }
 
             let data_registers = [0; 16];
 
             let mut processor = Processor {
                 data_registers,
-                address_register: 0x350,
+                address_register: u16::MAX - 8,
                 memory: program.clone(),
                 ..Processor::default()
             };
@@ -1009,7 +1009,7 @@ mod step {
                 processor,
                 Processor {
                     data_registers: expected_data_registers,
-                    address_register: 0x359,
+                    address_register: 0, // (u16::MAX - 8) + 8 + 1
                     memory: program,
                     program_counter: 0x202,
                     ..Processor::default()
@@ -1029,7 +1029,7 @@ mod step {
 
             let mut processor = Processor {
                 data_registers,
-                address_register: u16::MAX - (8 - 2), // make the store of the last register an OOB access
+                address_register: u16::MAX - (8 - 1), // make the store of the last register an OOB access
                 memory: program,
                 ..Processor::default()
             };

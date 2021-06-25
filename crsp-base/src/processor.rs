@@ -117,11 +117,17 @@ impl Default for Processor {
 impl Processor {
     /// The maximum length of memory that can be addressed with CHIP-8 instructions, [`u16::MAX`]+1.
     ///
+    /// See also [`Self::MAX_ADDRESS`]
+    pub const MAX_USABLE_MEMORY_LEN: usize = Self::MAX_ADDRESS as usize + 1;
+
+    /// The maximum address that can be represented with CHIP-8 instructions, [`u16::MAX`]+1.
+    ///
     /// [`Instruction::StoreRegisterValues`] and [`Instruction::LoadRegisterValues`]
     /// don't allow access outside of this and will cause a runtime error when run
     /// with the sum of the address in special address register `I`
-    /// and the number of the `last_register` greater than [`u16::MAX`].
-    pub const MAX_USABLE_MEMORY_LEN: usize = u16::MAX as usize + 1;
+    /// and the number of the `last_register` greater than this.
+    /// The same goes for [`Instruction::DrawSprite`] and the `last_sprite_byte_offset`.
+    pub const MAX_ADDRESS: u16 = u16::MAX;
 
     pub fn builder() -> ProcessorBuilder {
         ProcessorBuilder::new()
@@ -156,7 +162,7 @@ impl Processor {
     }
 
     pub fn step(&mut self) -> Result<(), ProcessorError> {
-        if self.program_counter as usize >= Self::MAX_USABLE_MEMORY_LEN - 1 {
+        if self.program_counter >= Self::MAX_ADDRESS {
             return Err(ProcessorError::OutOfBoundsMemoryAccess {
                 program_counter: self.program_counter,
             });
@@ -419,9 +425,7 @@ impl Processor {
                 self.memory[self.address_register as usize + 2] = val % 10;
             }
             Instruction::StoreRegisterValues { last_register } => {
-                if self.address_register as usize
-                    >= Self::MAX_USABLE_MEMORY_LEN - (last_register as u8) as usize
-                {
+                if self.address_register > Self::MAX_ADDRESS - (last_register as u8) as u16 {
                     return Err(ProcessorError::OutOfBoundsMemoryAccess {
                         program_counter: self.program_counter,
                     });
@@ -435,9 +439,7 @@ impl Processor {
                     .wrapping_add(last_register as u8 as u16 + 1);
             }
             Instruction::LoadRegisterValues { last_register } => {
-                if self.address_register as usize
-                    >= Self::MAX_USABLE_MEMORY_LEN - (last_register as u8) as usize
-                {
+                if self.address_register > Self::MAX_ADDRESS - (last_register as u8) as u16 {
                     return Err(ProcessorError::OutOfBoundsMemoryAccess {
                         program_counter: self.program_counter,
                     });
