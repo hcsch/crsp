@@ -103,7 +103,7 @@ pub struct Processor {
     call_stack: CallStack,
     delay_timer: u8,
     sound_timer: u8,
-    screen: [u8; 64 * 23],
+    screen: [u8; Self::SCREEN_WIDTH_BYTES as usize * Self::SCREEN_HEIGHT as usize],
     key_states: [KeyState; std::mem::variant_count::<Key>()],
     waiting_for_keypress: KeyWaitingState,
 }
@@ -128,6 +128,13 @@ impl Processor {
     /// and the number of the `last_register` greater than this.
     /// The same goes for [`Instruction::DrawSprite`] and the `last_sprite_byte_offset`.
     pub const MAX_ADDRESS: u16 = u16::MAX;
+
+    /// Screen width in bytes.
+    pub const SCREEN_WIDTH_BYTES: u8 = 8;
+    /// Screen width in pixels.
+    pub const SCREEN_WIDTH: u8 = Self::SCREEN_WIDTH_BYTES * 8;
+    /// Screen height in pixels.
+    pub const SCREEN_HEIGHT: u8 = 32;
 
     pub fn builder() -> ProcessorBuilder {
         ProcessorBuilder::new()
@@ -492,7 +499,7 @@ impl ProcessorBuilder {
                 call_stack: CallStack::default(),
                 delay_timer: 0,
                 sound_timer: 0,
-                screen: [0; 64 * 23],
+                screen: [0; 8 * 32],
                 key_states: [KeyState::NotPressed; 16],
                 waiting_for_keypress: KeyWaitingState::NotWaiting,
             },
