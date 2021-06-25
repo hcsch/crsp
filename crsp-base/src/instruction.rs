@@ -350,6 +350,9 @@ define_instruction! {
         /// in `position_x_register` and `position_y_register`.
         /// For this `last_sprite_byte_offset`+1 bytes of sprite data are read from the address
         /// stored in the special address register `I`.
+        ///
+        /// If the position for the sprite to be drawn is offscreen,
+        /// the position will have the modulo of the screen size in each dimension applied to it.
         DrawSprite {
             position_x_register: DataRegister,
             position_y_register: DataRegister,

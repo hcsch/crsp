@@ -96,6 +96,46 @@ impl Default for KeyWaitingState {
     }
 }
 
+/// Drawing behavior for sprites that are partially offscreen.
+///
+/// Sprites that are drawn at coordinates fully offscreen will *always*
+/// have the modulo of the screen size applied to their coordinates.
+/// The partial offscreen drawing behavior will be applied after this.
+/// See also [`Instruction::DrawSprite`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PartialOffscreenDrawing {
+    /// Clip offscreen parts of sprites in both X and Y.
+    ClipXY,
+    /// Clip offscreen parts of sprites in X, wrap in Y.
+    ClipXWrapY,
+    /// Wrap offscreen parts of sprites in X, clip in Y.
+    WrapXClipY,
+    /// Wrap offscreen parts of sprites in both X and Y.
+    WrapXY,
+}
+
+impl Default for PartialOffscreenDrawing {
+    fn default() -> Self {
+        Self::ClipXY
+    }
+}
+
+impl PartialOffscreenDrawing {
+    pub fn wrap_x(self) -> bool {
+        match self {
+            Self::WrapXY | Self::WrapXClipY => true,
+            _ => false,
+        }
+    }
+
+    pub fn wrap_y(self) -> bool {
+        match self {
+            Self::WrapXY | Self::ClipXWrapY => true,
+            _ => false,
+        }
+    }
+}
+
 // TODO: add screen and sprite handling
 // TODO: add delay and sound timer handling
 // TODO: add sound handling
@@ -112,6 +152,7 @@ pub struct Processor {
     screen: [u8; Self::SCREEN_WIDTH_BYTES as usize * Self::SCREEN_HEIGHT as usize],
     key_states: [KeyState; std::mem::variant_count::<Key>()],
     waiting_for_keypress: KeyWaitingState,
+    partial_offscreen_drawing: PartialOffscreenDrawing,
 }
 
 impl Default for Processor {
@@ -172,6 +213,25 @@ impl Processor {
             _ => (),
         }
         self.key_states[key as u8 as usize] = state;
+    }
+
+    /// Draw byte to `screen` at position `byte_x*8` and `y`.
+    /// Does not take `&mut self` so it can be called while iterating over a sprite in `self.memory`.
+    ///
+    /// Returns `true` if a set pixel has been unset, `false` otherwise.
+    fn draw_byte_to_screen(
+        screen: &mut [u8; Self::SCREEN_WIDTH_BYTES as usize * Self::SCREEN_HEIGHT as usize],
+        byte_x: usize,
+        y: usize,
+        byte: u8,
+    ) -> bool {
+        // A one in the original byte and the shifted sprite byte's bits
+        // will result in a set pixel being unset.
+        let set_pixel_unset = (screen[byte_x + y * Self::SCREEN_WIDTH_BYTES as usize] & byte) > 0;
+
+        screen[byte_x + y * Self::SCREEN_WIDTH_BYTES as usize] ^= byte;
+
+        set_pixel_unset
     }
 
     pub fn step(&mut self) -> Result<(), ProcessorError> {
@@ -364,7 +424,62 @@ impl Processor {
                 position_x_register,
                 position_y_register,
                 last_sprite_byte_offset,
-            } => todo!(),
+            } => {
+                if self.address_register
+                    > Self::MAX_ADDRESS - u8::from(last_sprite_byte_offset) as u16
+                {
+                    return Err(ProcessorError::OutOfBoundsMemoryAccess {
+                        program_counter: self.program_counter,
+                    });
+                }
+                let x = (self.get_register(position_x_register) % Self::SCREEN_WIDTH) as usize;
+                let y = (self.get_register(position_y_register) % Self::SCREEN_HEIGHT) as usize;
+                let mut set_pixel_unset = false;
+
+                for (i, sprite_byte) in self.memory[self.address_register as usize
+                    ..=(self.address_register as usize
+                        + u8::from(last_sprite_byte_offset) as usize)]
+                    .iter()
+                    .copied()
+                    .enumerate()
+                {
+                    // Wrap y if we should, else we're done for the entire sprite.
+                    let y = if y + i < Self::SCREEN_HEIGHT as usize
+                        || (y + i >= Self::SCREEN_HEIGHT as usize
+                            && self.partial_offscreen_drawing.wrap_y())
+                    {
+                        (y + i) % Self::SCREEN_HEIGHT as usize
+                    } else {
+                        break;
+                    };
+
+                    set_pixel_unset |= Self::draw_byte_to_screen(
+                        &mut self.screen,
+                        x / 8,
+                        y,
+                        sprite_byte >> (x % 8),
+                    );
+
+                    // If x is exactly at the start of a screen byte, we're done.
+                    // We're also done if the next byte is offscreen and we shouldn't wrap in X.
+                    if x % 8 == 0
+                        || (x + 7 >= Self::SCREEN_WIDTH as usize
+                            && !self.partial_offscreen_drawing.wrap_x())
+                    {
+                        continue;
+                    }
+
+                    // Draw remaining bits into next byte (possibly wrapping around in X)
+
+                    let rem_sprite_byte = sprite_byte << (8 - (x % 8));
+                    let rem_x = (x + (8 - (x % 8))) % Self::SCREEN_WIDTH as usize;
+
+                    set_pixel_unset |=
+                        Self::draw_byte_to_screen(&mut self.screen, rem_x / 8, y, rem_sprite_byte);
+                }
+
+                self.set_register(DataRegister::VF, set_pixel_unset as u8);
+            }
             Instruction::SkipIfKeyPressed { key_register } => {
                 let key_id = self.get_register(key_register);
                 if let Ok(key) = Key::try_from(key_id) {
@@ -508,6 +623,7 @@ impl ProcessorBuilder {
                 screen: [0; 8 * 32],
                 key_states: [KeyState::default(); 16],
                 waiting_for_keypress: KeyWaitingState::default(),
+                partial_offscreen_drawing: PartialOffscreenDrawing::default(),
             },
             font: Font::default(),
         }
@@ -536,6 +652,16 @@ impl ProcessorBuilder {
     /// See also [`Font`].
     pub fn font(mut self, font: Font) -> Self {
         self.font = font;
+        self
+    }
+
+    /// Set the partial offscreen drawing behavior for sprites.
+    /// See also [`PartialOffscreenDrawing`].
+    pub fn partial_offscreen_drawing(
+        mut self,
+        partial_offscreen_drawing: PartialOffscreenDrawing,
+    ) -> Self {
+        self.processor.partial_offscreen_drawing = partial_offscreen_drawing;
         self
     }
 
