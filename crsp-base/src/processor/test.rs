@@ -606,6 +606,32 @@ mod step {
                             }
                         );
                     }
+
+                    #[test]
+                    fn case_not_a_valid_key() {
+                        let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
+                        let instruction_bytes = <[u8; 2]>::from(Instruction::$instr_name {
+                            key_register: DataRegister::V3,
+                        });
+                        program[0x200..=0x201].copy_from_slice(&instruction_bytes);
+
+                        let mut data_registers = [0; 16];
+                        data_registers[DataRegister::V3 as u8 as usize] = 0x10;
+
+                        let mut processor = Processor {
+                            data_registers,
+                            memory: program.clone(),
+                            ..Processor::default()
+                        };
+
+                        assert_eq!(
+                            processor.step(),
+                            Err(ProcessorError::NotAValidKey {
+                                program_counter: 0x200,
+                                requested_key_id: 0x10,
+                            })
+                        );
+                    }
                 }
             };
         }
