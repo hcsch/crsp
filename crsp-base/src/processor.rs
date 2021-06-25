@@ -90,6 +90,12 @@ enum KeyWaitingState {
     Waiting { target_register: DataRegister },
 }
 
+impl Default for KeyWaitingState {
+    fn default() -> Self {
+        Self::NotWaiting
+    }
+}
+
 // TODO: add screen and sprite handling
 // TODO: add delay and sound timer handling
 // TODO: add sound handling
@@ -500,8 +506,8 @@ impl ProcessorBuilder {
                 delay_timer: 0,
                 sound_timer: 0,
                 screen: [0; 8 * 32],
-                key_states: [KeyState::NotPressed; 16],
-                waiting_for_keypress: KeyWaitingState::NotWaiting,
+                key_states: [KeyState::default(); 16],
+                waiting_for_keypress: KeyWaitingState::default(),
             },
             font: Font::default(),
         }

@@ -57,3 +57,9 @@ pub enum KeyState {
     Pressed,
     NotPressed,
 }
+
+impl Default for KeyState {
+    fn default() -> Self {
+        Self::NotPressed
+    }
+}
