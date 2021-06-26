@@ -1318,41 +1318,71 @@ mod step {
         }
     }
 
-    #[test]
-    fn instr_store_bcd() {
-        let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
-        let instruction_bytes = <[u8; 2]>::from(Instruction::StoreBCD {
-            source_register: DataRegister::V0,
-        });
-        program[0x200..=0x201].copy_from_slice(&instruction_bytes);
+    mod instr_store_bcd {
+        use super::*;
 
-        let mut data_registers = [0; 16];
-        data_registers[DataRegister::V0 as u8 as usize] = 123;
+        #[test]
+        fn case_ok() {
+            let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
+            let instruction_bytes = <[u8; 2]>::from(Instruction::StoreBCD {
+                source_register: DataRegister::V0,
+            });
+            program[0x200..=0x201].copy_from_slice(&instruction_bytes);
 
-        let mut processor = Processor {
-            data_registers,
-            address_register: 0x32A,
-            memory: program.clone(),
-            ..Processor::default()
-        };
+            let mut data_registers = [0; 16];
+            data_registers[DataRegister::V0 as u8 as usize] = 123;
 
-        processor.step().unwrap();
-
-        let mut expected_memory = program;
-        expected_memory[0x32A] = 1;
-        expected_memory[0x32A + 1] = 2;
-        expected_memory[0x32A + 2] = 3;
-
-        assert_eq!(
-            processor,
-            Processor {
+            let mut processor = Processor {
                 data_registers,
-                address_register: 0x32A,
-                memory: expected_memory,
-                program_counter: 0x202,
+                address_register: Processor::MAX_ADDRESS - 2,
+                memory: program.clone(),
                 ..Processor::default()
-            }
-        );
+            };
+
+            processor.step().unwrap();
+
+            let mut expected_memory = program;
+            expected_memory[Processor::MAX_ADDRESS as usize - 2] = 1;
+            expected_memory[Processor::MAX_ADDRESS as usize - 1] = 2;
+            expected_memory[Processor::MAX_ADDRESS as usize] = 3;
+
+            assert_eq!(
+                processor,
+                Processor {
+                    data_registers,
+                    address_register: Processor::MAX_ADDRESS - 2,
+                    memory: expected_memory,
+                    program_counter: 0x202,
+                    ..Processor::default()
+                }
+            );
+        }
+
+        #[test]
+        fn case_err() {
+            let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
+            let instruction_bytes = <[u8; 2]>::from(Instruction::StoreBCD {
+                source_register: DataRegister::V0,
+            });
+            program[0x200..=0x201].copy_from_slice(&instruction_bytes);
+
+            let mut data_registers = [0; 16];
+            data_registers[DataRegister::V0 as u8 as usize] = 123;
+
+            let mut processor = Processor {
+                data_registers,
+                address_register: Processor::MAX_ADDRESS - 1,
+                memory: program.clone(),
+                ..Processor::default()
+            };
+
+            assert_eq!(
+                processor.step(),
+                Err(ProcessorError::OutOfBoundsMemoryAccess {
+                    program_counter: 0x200
+                }),
+            );
+        }
     }
 
     mod instr_store_register_values {

@@ -574,11 +574,14 @@ impl Processor {
                 self.address_register = self.get_register(hex_char_register) as u16 * 5;
             }
             Instruction::StoreBCD { source_register } => {
+                if self.address_register > Self::MAX_ADDRESS - 2 as u16 {
+                    return Err(ProcessorError::OutOfBoundsMemoryAccess {
+                        program_counter: self.program_counter,
+                    });
+                }
+
                 let val = self.get_register(source_register);
 
-                // SAFETY: this can't produce an OOB accesses,
-                //         as self.memory.len() is strictly greater than
-                //         the maximum value of (self.address_register + 2)
                 self.memory[self.address_register as usize..=(self.address_register as usize + 2)]
                     .copy_from_slice(&Self::decimal_digits_of_u8(val));
             }
