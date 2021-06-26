@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::{convert::TryFrom, time::Duration};
 
 use rand::random;
 use thiserror::Error;
@@ -138,6 +138,18 @@ impl PartialOffscreenDrawing {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum InstructionTiming {
+    TotalTime { duration: Duration },
+    WaitForKeyPress,
+}
+
+impl From<Duration> for InstructionTiming {
+    fn from(duration: Duration) -> Self {
+        Self::TotalTime { duration }
+    }
+}
+
 // TODO: add screen and sprite handling
 // TODO: add delay and sound timer handling
 // TODO: add sound handling
@@ -237,7 +249,16 @@ impl Processor {
         set_pixel_unset
     }
 
-    pub fn step(&mut self) -> Result<(), ProcessorError> {
+    /// Return decimal digits of a u8 value.
+    /// The hundreds digit is the first element in the array,
+    /// followed by the tens and single digits.
+    ///
+    /// 3 digits are always enough, since the maximum value of a u8 is 255.
+    fn decimal_digits_of_u8(num: u8) -> [u8; 3] {
+        [num / 100, num / 10 % 10, num % 10]
+    }
+
+    pub fn step(&mut self) -> Result<InstructionTiming, ProcessorError> {
         if self.program_counter >= Self::MAX_ADDRESS {
             return Err(ProcessorError::OutOfBoundsMemoryAccess {
                 program_counter: self.program_counter,
@@ -558,9 +579,8 @@ impl Processor {
                 // SAFETY: this can't produce an OOB accesses,
                 //         as self.memory.len() is strictly greater than
                 //         the maximum value of (self.address_register + 2)
-                self.memory[self.address_register as usize] = val / 100;
-                self.memory[self.address_register as usize + 1] = val / 10 % 10;
-                self.memory[self.address_register as usize + 2] = val % 10;
+                self.memory[self.address_register as usize..=(self.address_register as usize + 2)]
+                    .copy_from_slice(&Self::decimal_digits_of_u8(val));
             }
             Instruction::StoreRegisterValues { last_register } => {
                 if self.address_register > Self::MAX_ADDRESS - (last_register as u8) as u16 {
@@ -600,7 +620,123 @@ impl Processor {
                 .wrapping_add(std::mem::size_of::<u16>() as u16);
         }
 
-        Ok(())
+        Ok(self.instruction_timing(instruction))
+    }
+
+    /// Return the average total amount of time an instruction should take,
+    /// or an event to wait for.
+    /// See [`InstructionTiming`].
+    ///
+    /// If an instruction is unsupported or would produce an error,
+    /// a Duration of 0µs is returned.
+    ///
+    /// Information taken from
+    /// <https://jackson-s.me/2019/07/13/Chip-8-Instruction-Scheduling-and-Frequency.html>
+    /// ([archived](https://web.archive.org/web/20210626163444/https://jackson-s.me/2019/07/13/Chip-8-Instruction-Scheduling-and-Frequency.html))
+    /// and also
+    /// <https://web.archive.org/web/20170224084655/http://laurencescotford.co.uk/?p=405>
+    /// from which the former source derives its information.
+    fn instruction_timing(&self, instruction: Instruction) -> InstructionTiming {
+        match instruction {
+            Instruction::CallMachineSubroutine { .. } => Duration::from_micros(0).into(), // unsupported
+            Instruction::ClearDisplay => Duration::from_micros(109).into(),
+            Instruction::Return
+            | Instruction::Jump { .. }
+            | Instruction::CallSubroutine { .. }
+            | Instruction::JumpOffset { .. } => {
+                Duration::from_micros(105).into() // ignores page boundaries of original chip
+            }
+            Instruction::SkipIfEqConst { register, constant } => {
+                if self.get_register(register) == constant {
+                    Duration::from_micros(55 - 9)
+                } else {
+                    Duration::from_micros(55 + 9)
+                }
+                .into()
+            }
+            Instruction::SkipIfNeqConst { register, constant } => {
+                if self.get_register(register) != constant {
+                    Duration::from_micros(55 - 9)
+                } else {
+                    Duration::from_micros(55 + 9)
+                }
+                .into()
+            }
+            Instruction::SkipIfEq {
+                register1,
+                register2,
+            } => if self.get_register(register1) == self.get_register(register2) {
+                Duration::from_micros(73 - 9)
+            } else {
+                Duration::from_micros(73 + 9)
+            }
+            .into(),
+            Instruction::SkipIfNeq {
+                register1,
+                register2,
+            } => if self.get_register(register1) != self.get_register(register2) {
+                Duration::from_micros(73 - 9)
+            } else {
+                Duration::from_micros(73 + 9)
+            }
+            .into(),
+            Instruction::SkipIfKeyPressed { key_register } => {
+                let key_id = self.get_register(key_register);
+                if let Ok(key) = Key::try_from(key_id) {
+                    if self.get_key_state(key) == KeyState::Pressed {
+                        Duration::from_micros(73 - 9)
+                    } else {
+                        Duration::from_micros(73 + 9)
+                    }
+                } else {
+                    Duration::from_micros(0)
+                }
+                .into()
+            }
+            Instruction::SkipIfKeyNotPressed { key_register } => {
+                let key_id = self.get_register(key_register);
+                if let Ok(key) = Key::try_from(key_id) {
+                    if self.get_key_state(key) == KeyState::NotPressed {
+                        Duration::from_micros(73 - 9)
+                    } else {
+                        Duration::from_micros(73 + 9)
+                    }
+                } else {
+                    Duration::from_micros(0)
+                }
+                .into()
+            }
+            Instruction::AssignConst { .. } => Duration::from_micros(27).into(),
+            Instruction::AddAssignConst { .. }
+            | Instruction::AssignDelayTimerVal { .. }
+            | Instruction::SetDelayTimer { .. }
+            | Instruction::SetSoundTimer { .. } => Duration::from_micros(45).into(),
+            Instruction::Assign { .. }
+            | Instruction::OrAssign { .. }
+            | Instruction::AndAssign { .. }
+            | Instruction::XorAssign { .. }
+            | Instruction::AddAssign { .. }
+            | Instruction::SubAssign { .. }
+            | Instruction::ShrAssign { .. }
+            | Instruction::RevSubAssign { .. }
+            | Instruction::ShlAssign { .. } => Duration::from_micros(200).into(),
+            Instruction::AssignAddrToI { .. } => Duration::from_micros(55).into(),
+            Instruction::AssignRandomMasked { .. } => Duration::from_micros(164).into(),
+            Instruction::DrawSprite { .. } => Duration::from_micros(22_734).into(), // ignores intricacies, simply the average time
+            Instruction::WaitForKeyPress { .. } => InstructionTiming::WaitForKeyPress,
+            Instruction::AddAssignI { .. } => Duration::from_micros(86).into(), // ignores page boundaries of original chip
+            Instruction::AssignHexCharSpriteAddrToI { .. } => Duration::from_micros(91).into(),
+            Instruction::StoreBCD { source_register } => {
+                let val = self.get_register(source_register);
+                let digit_sum = Self::decimal_digits_of_u8(val).iter().sum::<u8>() as u64;
+                Duration::from_micros(364 + digit_sum * 73).into()
+            }
+            Instruction::StoreRegisterValues { last_register }
+            | Instruction::LoadRegisterValues { last_register } => {
+                let num_registers = last_register as u8 + 1;
+                Duration::from_micros(605 + num_registers as u64 * 64).into()
+            }
+        }
     }
 }
 
