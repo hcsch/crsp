@@ -88,6 +88,38 @@ mod step {
         }
     }
 
+    #[test]
+    fn instr_clear_display() {
+        let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
+        let instruction_bytes = <[u8; 2]>::from(Instruction::ClearDisplay);
+        program[0x200..=0x201].copy_from_slice(&instruction_bytes);
+
+        let mut screen =
+            [0; Processor::SCREEN_WIDTH_BYTES as usize * Processor::SCREEN_HEIGHT as usize];
+
+        // Fill with ascending bytes, wrapping around to 0 again after 255 is reached.
+        for (i, byte) in screen.iter_mut().enumerate() {
+            *byte = (i % 255) as u8;
+        }
+
+        let mut processor = Processor {
+            memory: program.clone(),
+            screen,
+            ..Processor::default()
+        };
+
+        processor.step().unwrap();
+
+        assert_eq!(
+            processor,
+            Processor {
+                memory: program,
+                program_counter: 0x202,
+                ..Processor::default()
+            }
+        );
+    }
+
     mod instr_return {
         use super::*;
 

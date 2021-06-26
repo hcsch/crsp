@@ -277,7 +277,7 @@ impl Processor {
         let mut was_control_flow_instr = false;
 
         match instruction {
-            Instruction::ClearDisplay => todo!(),
+            Instruction::ClearDisplay => self.screen.fill(0),
             Instruction::Return => {
                 self.program_counter =
                     self.call_stack
