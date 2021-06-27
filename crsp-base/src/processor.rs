@@ -4,7 +4,7 @@ use rand::random;
 use thiserror::Error;
 
 use crate::{
-    graphics::font_4x5::Font,
+    builtin_sprites::font_4x5::Font,
     instruction::{Instruction, InvalidInstructionNibblesError},
 };
 
