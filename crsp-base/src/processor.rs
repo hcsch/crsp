@@ -1,5 +1,10 @@
-use std::{convert::TryFrom, time::Duration};
+use std::{
+    convert::TryFrom,
+    thread::{self, JoinHandle},
+    time::{Duration, Instant},
+};
 
+use flume::{Receiver, Sender};
 use rand::random;
 use thiserror::Error;
 
@@ -150,9 +155,94 @@ impl From<Duration> for InstructionTiming {
     }
 }
 
-// TODO: add screen and sprite handling
-// TODO: add delay and sound timer handling
-// TODO: add sound handling
+#[derive(Debug, PartialEq, Eq)]
+pub struct StepOutcome {
+    instruction_timing: InstructionTiming,
+    screen_updated: bool,
+    sound_timer_updated: bool,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ProcessorEvent {
+    ScreenUpdate {
+        new_screen:
+            [u8; Processor::SCREEN_WIDTH_BYTES as usize * Processor::SCREEN_HEIGHT as usize],
+    },
+    SoundRequest {
+        duration: Duration,
+    },
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ControlEvent {
+    KeyStateChange { key: Key, new_state: KeyState },
+}
+
+pub struct ProcessorHandle {
+    processor_event_receiver: Receiver<ProcessorEvent>,
+    control_event_sender: Sender<ControlEvent>,
+    stop_sender: Sender<()>,
+    join_handle: Option<JoinHandle<Result<Processor, ProcessorError>>>,
+}
+
+impl ProcessorHandle {
+    pub async fn receive_event(&mut self) -> Result<ProcessorEvent, ProcessorError> {
+        self.processor_event_receiver
+            .recv_async()
+            .await
+            .map_err(|_| {
+                // FIXME: this blocks
+                self.join_handle
+                    .take()
+                    .expect("a ProcessorHandle must always contain a JoinHandle until dropped")
+                    .join()
+                    .expect("processor should not panic")
+                    .err()
+                    .expect("processor must not stop unless request or an error occurred")
+            })
+    }
+
+    pub async fn send_event(&mut self, control_event: ControlEvent) -> Result<(), ProcessorError> {
+        self.control_event_sender
+            .send_async(control_event)
+            .await
+            .map_err(|_| {
+                // FIXME: this blocks
+                self.join_handle
+                    .take()
+                    .expect("a ProcessorHandle must always contain a JoinHandle until dropped")
+                    .join()
+                    .expect("processor should not panic")
+                    .err()
+                    .expect("processor must not stop unless request or an error occurred")
+            })
+    }
+
+    pub async fn stop(mut self) -> Result<Processor, ProcessorError> {
+        self.stop_sender
+            .send_async(())
+            .await
+            .map_err(|_| {
+                // FIXME: this blocks
+                self.join_handle
+                    .take()
+                    .expect("a ProcessorHandle must always contain a JoinHandle until dropped")
+                    .join()
+                    .expect("processor should not panic")
+                    .err()
+                    .expect("processor must not stop unless request or an error occurred")
+            })
+            .and_then(|_| {
+                // FIXME: this blocks
+                self.join_handle
+                    .take()
+                    .expect("a ProcessorHandle must always contain a JoinHandle until dropped")
+                    .join()
+                    .expect("processor should not panic")
+            })
+    }
+}
+
 // TODO: consider supporting S-CHIP as well
 #[derive(Debug, PartialEq, Eq)]
 pub struct Processor {
@@ -200,6 +290,89 @@ impl Processor {
 
     pub fn builder() -> ProcessorBuilder {
         ProcessorBuilder::new()
+    }
+
+    // TODO: add tests for this
+    pub fn start(mut self) -> ProcessorHandle {
+        let (processor_event_sender, processor_event_receiver) = flume::bounded(2);
+        let (control_event_sender, control_event_receiver) = flume::bounded(2);
+        let (stop_sender, stop_receiver) = flume::bounded(0);
+
+        let join_handle = thread::spawn(move || {
+            loop {
+                let start = Instant::now();
+
+                // TODO: stop channel maybe unneeded (simply close/drop other channels)
+                match stop_receiver.try_recv() {
+                    Ok(()) | Err(flume::TryRecvError::Disconnected) => break,
+                    Err(flume::TryRecvError::Empty) => (),
+                }
+
+                let control_event = match control_event_receiver.try_recv() {
+                    Ok(control_event) => Some(control_event),
+                    Err(flume::TryRecvError::Empty) => None,
+                    Err(flume::TryRecvError::Disconnected) => break, // ProcessorHandle dropped, stop
+                };
+                if let Some(control_event) = control_event {
+                    match control_event {
+                        ControlEvent::KeyStateChange { key, new_state } => {
+                            self.set_key_state(key, new_state)
+                        }
+                    }
+                }
+
+                let outcome = self.step()?;
+
+                if outcome.screen_updated {
+                    if let Err(_) = processor_event_sender.send(ProcessorEvent::ScreenUpdate {
+                        new_screen: self.screen.clone(),
+                    }) {
+                        break;
+                    }
+                }
+
+                if outcome.sound_timer_updated {
+                    if let Err(_) = processor_event_sender.send(ProcessorEvent::SoundRequest {
+                        duration: Duration::from_secs_f64(1.0 / 60.0 * self.sound_timer as f64),
+                    }) {
+                        break;
+                    }
+                }
+
+                match outcome.instruction_timing {
+                    InstructionTiming::TotalTime { duration } => {
+                        let delta = duration.checked_sub(start.elapsed());
+                        if let Some(delta) = delta {
+                            spin_sleep::sleep(delta);
+                        } else {
+                            eprint!("warning: instruction processing took longer than target time");
+                        }
+                    }
+                    InstructionTiming::WaitForKeyPress => {
+                        let control_event = match control_event_receiver.recv() {
+                            Ok(control_event) => Some(control_event),
+                            Err(flume::RecvError::Disconnected) => break, // ProcessorHandle dropped, stop
+                        };
+                        if let Some(control_event) = control_event {
+                            match control_event {
+                                ControlEvent::KeyStateChange { key, new_state } => {
+                                    self.set_key_state(key, new_state)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Ok(self)
+        });
+
+        ProcessorHandle {
+            processor_event_receiver,
+            control_event_sender,
+            stop_sender,
+            join_handle: Some(join_handle),
+        }
     }
 
     /// Get the value of a data register.
@@ -258,7 +431,7 @@ impl Processor {
         [num / 100, num / 10 % 10, num % 10]
     }
 
-    pub fn step(&mut self) -> Result<InstructionTiming, ProcessorError> {
+    pub fn step(&mut self) -> Result<StepOutcome, ProcessorError> {
         if self.program_counter >= Self::MAX_ADDRESS {
             return Err(ProcessorError::OutOfBoundsMemoryAccess {
                 program_counter: self.program_counter,
@@ -275,9 +448,15 @@ impl Processor {
         let instruction = Instruction::try_from(instruction_nibbles)?;
 
         let mut was_control_flow_instr = false;
+        let mut screen_updated = false;
+        let mut sound_timer_updated = false;
 
         match instruction {
-            Instruction::ClearDisplay => self.screen.fill(0),
+            Instruction::ClearDisplay => {
+                self.screen.fill(0);
+
+                screen_updated = true;
+            }
             Instruction::Return => {
                 self.program_counter =
                     self.call_stack
@@ -510,6 +689,8 @@ impl Processor {
                 }
 
                 self.set_register(DataRegister::VF, set_pixel_unset as u8);
+
+                screen_updated = true;
             }
             Instruction::SkipIfKeyPressed { key_register } => {
                 let key_id = self.get_register(key_register);
@@ -550,13 +731,16 @@ impl Processor {
             }
             Instruction::WaitForKeyPress { target_register } => {
                 self.waiting_for_keypress = KeyWaitingState::Waiting { target_register };
-                todo!()
+                // actual waiting is done by the caller of step()
+                // and is signaled by the instruction_timing of the StepOutcome
             }
             Instruction::SetDelayTimer { source_register } => {
                 self.delay_timer = self.get_register(source_register)
             }
             Instruction::SetSoundTimer { source_register } => {
-                self.sound_timer = self.get_register(source_register)
+                self.sound_timer = self.get_register(source_register);
+
+                sound_timer_updated = true;
             }
             Instruction::AddAssignI { source_register } => {
                 self.address_register = self
@@ -623,7 +807,11 @@ impl Processor {
                 .wrapping_add(std::mem::size_of::<u16>() as u16);
         }
 
-        Ok(self.instruction_timing(instruction))
+        Ok(StepOutcome {
+            instruction_timing: self.instruction_timing(instruction),
+            screen_updated,
+            sound_timer_updated,
+        })
     }
 
     /// Return the average total amount of time an instruction should take,

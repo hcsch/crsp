@@ -17,7 +17,7 @@ mod step {
             processor.step(),
             Err(ProcessorError::OutOfBoundsMemoryAccess {
                 program_counter: (Processor::MAX_USABLE_MEMORY_LEN - 1) as u16
-            }) as Result<InstructionTiming, _>
+            }) as Result<StepOutcome, _>
         );
     }
 
@@ -83,7 +83,7 @@ mod step {
                 processor.step(),
                 Err(ProcessorError::CallMachineSubroutineUnsupported {
                     program_counter: 0x200
-                }) as Result<InstructionTiming, _>
+                }) as Result<StepOutcome, _>
             );
         }
     }
@@ -164,7 +164,7 @@ mod step {
                 processor.step(),
                 Err(ProcessorError::ReturnWithEmptyCallStack {
                     program_counter: 0x204
-                }) as Result<InstructionTiming, _>
+                }) as Result<StepOutcome, _>
             );
         }
     }
@@ -241,7 +241,7 @@ mod step {
                 processor.step(),
                 Err(ProcessorError::MaxCallStackSizeExceeded {
                     program_counter: 0x200,
-                }) as Result<InstructionTiming, _>,
+                }) as Result<StepOutcome, _>,
             );
         }
     }
@@ -1012,7 +1012,7 @@ mod step {
                 processor.step(),
                 Err(ProcessorError::OutOfBoundsMemoryAccess {
                     program_counter: 0x200
-                }) as Result<InstructionTiming, _>
+                }) as Result<StepOutcome, _>
             );
         }
     }
@@ -1483,7 +1483,7 @@ mod step {
                 processor.step(),
                 Err(ProcessorError::OutOfBoundsMemoryAccess {
                     program_counter: 0x200
-                }) as Result<InstructionTiming, _>
+                }) as Result<StepOutcome, _>
             );
         }
     }
@@ -1551,7 +1551,7 @@ mod step {
                 processor.step(),
                 Err(ProcessorError::OutOfBoundsMemoryAccess {
                     program_counter: 0x200
-                }) as Result<InstructionTiming, _>
+                }) as Result<StepOutcome, _>
             );
         }
     }
