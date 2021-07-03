@@ -737,7 +737,7 @@ mod step {
             let instruction_bytes = <[u8; 2]>::from(Instruction::DrawSprite {
                 position_x_register: DataRegister::V0,
                 position_y_register: DataRegister::V1,
-                last_sprite_byte_offset: U4::try_from(7).unwrap(), // 8x8 sprite
+                sprite_byte_len: U4::try_from(8).unwrap(), // 8x8 sprite
             });
             program[0x200..=0x201].copy_from_slice(&instruction_bytes);
             program[0x300..=0x307].copy_from_slice(&SPRITE_BYTES);
@@ -816,7 +816,7 @@ mod step {
             let instruction_bytes = <[u8; 2]>::from(Instruction::DrawSprite {
                 position_x_register: DataRegister::V0,
                 position_y_register: DataRegister::V1,
-                last_sprite_byte_offset: U4::try_from(7).unwrap(), // 8x8 sprite
+                sprite_byte_len: U4::try_from(8).unwrap(), // 8x8 sprite
             });
             program[0x200..=0x201].copy_from_slice(&instruction_bytes);
             program[0x300..=0x307].copy_from_slice(&SPRITE_BYTES);
@@ -895,7 +895,7 @@ mod step {
             let instruction_bytes = <[u8; 2]>::from(Instruction::DrawSprite {
                 position_x_register: DataRegister::V0,
                 position_y_register: DataRegister::V1,
-                last_sprite_byte_offset: U4::try_from(7).unwrap(), // 8x8 sprite
+                sprite_byte_len: U4::try_from(8).unwrap(), // 8x8 sprite
             });
             program[0x200..=0x201].copy_from_slice(&instruction_bytes);
             program[0x300..=0x307].copy_from_slice(&SPRITE_BYTES);
@@ -974,7 +974,7 @@ mod step {
             let instruction_bytes = <[u8; 2]>::from(Instruction::DrawSprite {
                 position_x_register: DataRegister::V0,
                 position_y_register: DataRegister::V1,
-                last_sprite_byte_offset: U4::try_from(7).unwrap(), // 8x8 sprite
+                sprite_byte_len: U4::try_from(8).unwrap(), // 8x8 sprite
             });
             program[0x200..=0x201].copy_from_slice(&instruction_bytes);
             program[0x300..=0x307].copy_from_slice(&SPRITE_BYTES);
@@ -1053,7 +1053,7 @@ mod step {
             let instruction_bytes = <[u8; 2]>::from(Instruction::DrawSprite {
                 position_x_register: DataRegister::V0,
                 position_y_register: DataRegister::V1,
-                last_sprite_byte_offset: U4::try_from(1).unwrap(),
+                sprite_byte_len: U4::try_from(2).unwrap(),
             });
             program[0x200..=0x201].copy_from_slice(&instruction_bytes);
 

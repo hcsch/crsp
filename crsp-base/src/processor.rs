@@ -317,7 +317,7 @@ impl Processor {
     /// don't allow access outside of this and will cause a runtime error when run
     /// with the sum of the address in special address register `I`
     /// and the number of the `last_register` greater than this.
-    /// The same goes for [`Instruction::DrawSprite`] and the `last_sprite_byte_offset`.
+    /// The same goes for [`Instruction::DrawSprite`] and the `sprite_byte_len`.
     pub const MAX_ADDRESS: u16 = u16::MAX;
 
     /// Screen width in bytes.
@@ -690,10 +690,9 @@ impl Processor {
             Instruction::DrawSprite {
                 position_x_register,
                 position_y_register,
-                last_sprite_byte_offset,
+                sprite_byte_len,
             } => {
-                if self.address_register
-                    > Self::MAX_ADDRESS - u8::from(last_sprite_byte_offset) as u16
+                if self.address_register > Self::MAX_ADDRESS - u8::from(sprite_byte_len) as u16 + 1
                 {
                     return Err(ProcessorError::OutOfBoundsMemoryAccess {
                         program_counter: self.program_counter,
@@ -704,8 +703,7 @@ impl Processor {
                 let mut set_pixel_unset = false;
 
                 for (i, sprite_byte) in self.memory[self.address_register as usize
-                    ..=(self.address_register as usize
-                        + u8::from(last_sprite_byte_offset) as usize)]
+                    ..(self.address_register as usize + u8::from(sprite_byte_len) as usize)]
                     .iter()
                     .copied()
                     .enumerate()

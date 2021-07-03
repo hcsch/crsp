@@ -362,16 +362,20 @@ define_instruction! {
         } = (0xC, target_register, mask),
         /// Draw a sprite at the position given by the values
         /// in `position_x_register` and `position_y_register`.
-        /// For this `last_sprite_byte_offset`+1 bytes of sprite data are read from the address
+        /// For this `sprite_byte_len` bytes of sprite data are read from the address
         /// stored in the special address register `I`.
+        ///
+        /// The bits of sprite data are XORed onto the screen.
+        /// If a previously set bit of the screen is unset in the process,
+        /// [`DataRegister::VF`] is set to `1`, if not it is set to `0`.
         ///
         /// If the position for the sprite to be drawn is offscreen,
         /// the position will have the modulo of the screen size in each dimension applied to it.
         DrawSprite {
             position_x_register: DataRegister,
             position_y_register: DataRegister,
-            last_sprite_byte_offset: U4,
-        } = (0xD, position_x_register, position_y_register, last_sprite_byte_offset),
+            sprite_byte_len: U4,
+        } = (0xD, position_x_register, position_y_register, sprite_byte_len),
         /// Skip the next instruction if the key corresponding
         /// to the value set in `key_register` is pressed.
         SkipIfKeyPressed { key_register: DataRegister } = (0xE, key_register, 0x9, 0xE),
@@ -462,7 +466,7 @@ mod test {
         let instr = Instruction::DrawSprite {
             position_x_register: DataRegister::V9,
             position_y_register: DataRegister::V3,
-            last_sprite_byte_offset: U4::try_from(5).unwrap(),
+            sprite_byte_len: U4::try_from(5).unwrap(),
         };
 
         let instr_bytes = [0xD9_u8, 0x35];
