@@ -1130,7 +1130,7 @@ mod step {
                         let mut processor = Processor {
                             data_registers,
                             memory: program.clone(),
-                            key_states: key_states,
+                            key_states,
                             ..Processor::default()
                         };
 
@@ -1142,7 +1142,7 @@ mod step {
                                 data_registers,
                                 memory: program,
                                 program_counter: if $negated { 0x202 } else { 0x204 },
-                                key_states: key_states,
+                                key_states,
                                 ..Processor::default()
                             }
                         );
