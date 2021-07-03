@@ -7,6 +7,7 @@ use std::{
 use flume::{Receiver, Sender};
 use rand::random;
 use thiserror::Error;
+use tracing::{debug, error, trace, trace_span, warn, Level};
 
 use crate::{
     builtin_sprites::font_4x5::Font,
@@ -431,6 +432,7 @@ impl Processor {
 
     /// Set the state of a key.
     pub fn set_key_state(&mut self, key: Key, state: KeyState) {
+        debug!(?key, ?state, "key state update");
         // TODO: possibly replace with if let chain once let_chains (eRFC 2497) work
         match self.waiting_for_keypress {
             KeyWaitingState::Waiting { target_register } if state == KeyState::Pressed => {
@@ -476,6 +478,7 @@ impl Processor {
         [num / 100, num / 10 % 10, num % 10]
     }
 
+    #[tracing::instrument(level = Level::TRACE, skip(self))]
     pub fn step(&mut self) -> Result<StepOutcome, ProcessorError> {
         if self.program_counter >= Self::MAX_ADDRESS {
             return Err(ProcessorError::OutOfBoundsMemoryAccess {
@@ -509,6 +512,8 @@ impl Processor {
                 }
             }
         };
+
+        trace!(program_counter = ?self.program_counter, ?instruction, "executing instruction");
 
         let mut was_control_flow_instr = false;
         let mut screen_updated = false;

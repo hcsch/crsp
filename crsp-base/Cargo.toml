@@ -16,3 +16,4 @@ static_assertions = "1.1.0"
 derive_more = "0.99.14"
 flume = "0.10.7"
 spin_sleep = "1.0.0"
+tracing = { version = "0.1.26", features = ["attributes"] }
