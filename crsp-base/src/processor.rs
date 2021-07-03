@@ -622,8 +622,8 @@ impl Processor {
                 let (res, carry) = self
                     .get_register(target_register)
                     .overflowing_add(self.get_register(source_register));
-                self.set_register(DataRegister::VF, carry as u8);
                 self.set_register(target_register, res);
+                self.set_register(DataRegister::VF, carry as u8);
             }
             Instruction::SubAssign {
                 target_register,
@@ -632,16 +632,16 @@ impl Processor {
                 let (res, borrow) = self
                     .get_register(target_register)
                     .overflowing_sub(self.get_register(source_register));
-                self.set_register(DataRegister::VF, 1 - borrow as u8);
                 self.set_register(target_register, res);
+                self.set_register(DataRegister::VF, 1 - borrow as u8);
             }
             Instruction::ShrAssign {
                 target_register,
                 source_register,
             } => {
                 let old_lsb = self.get_register(source_register) & 0b1;
-                self.set_register(DataRegister::VF, old_lsb);
                 self.set_register(target_register, self.get_register(source_register) >> 1);
+                self.set_register(DataRegister::VF, old_lsb);
             }
             Instruction::RevSubAssign {
                 target_register,
@@ -650,16 +650,16 @@ impl Processor {
                 let (res, borrow) = self
                     .get_register(source_register)
                     .overflowing_sub(self.get_register(target_register));
-                self.set_register(DataRegister::VF, 1 - borrow as u8);
                 self.set_register(target_register, res);
+                self.set_register(DataRegister::VF, 1 - borrow as u8);
             }
             Instruction::ShlAssign {
                 target_register,
                 source_register,
             } => {
                 let old_msb = (self.get_register(source_register) >> 7) & 0b1;
-                self.set_register(DataRegister::VF, old_msb);
                 self.set_register(target_register, self.get_register(source_register) << 1);
+                self.set_register(DataRegister::VF, old_msb);
             }
             Instruction::SkipIfNeq {
                 register1,

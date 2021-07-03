@@ -293,6 +293,8 @@ define_instruction! {
         ///
         /// If a carry occurs [`DataRegister::VF`] is set to `1`,
         /// if not it is set to `0`.
+        /// If the `target_register` is [`DataRegister::VF`],
+        /// the this will overwrite the result, discarding it.
         AddAssign {
             target_register: DataRegister,
             source_register: DataRegister,
@@ -303,6 +305,8 @@ define_instruction! {
         ///
         /// If a borrow occurs [`DataRegister::VF`] is set to `0`,
         /// if not it is set to `1`.
+        /// If the `target_register` is [`DataRegister::VF`],
+        /// the this will overwrite the result, discarding it.
         SubAssign {
             target_register: DataRegister,
             source_register: DataRegister,
@@ -312,6 +316,8 @@ define_instruction! {
         ///
         /// [`DataRegister::VF`] is set to the least significant bit of
         /// `source_register` prior to the shift, i.e. the bit that is shifted out.
+        /// If the `target_register` is [`DataRegister::VF`],
+        /// the this will overwrite the result, discarding it.
         ShrAssign {
             target_register: DataRegister,
             source_register: DataRegister,
@@ -322,6 +328,8 @@ define_instruction! {
         ///
         /// If a borrow occurs [`DataRegister::VF`] is set to `0`,
         /// if not it is set to `1`.
+        /// If the `target_register` is [`DataRegister::VF`],
+        /// the this will overwrite the result, discarding it.
         RevSubAssign {
             target_register: DataRegister,
             source_register: DataRegister,
@@ -331,6 +339,8 @@ define_instruction! {
         ///
         /// [`DataRegister::VF`] is set to the most significant bit of
         /// `source_register` prior to the shift, i.e. the bit that is shifted out.
+        /// If the `target_register` is [`DataRegister::VF`],
+        /// the this will overwrite the result, discarding it.
         ShlAssign {
             target_register: DataRegister,
             source_register: DataRegister,

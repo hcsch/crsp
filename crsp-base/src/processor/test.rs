@@ -530,23 +530,25 @@ mod step {
             (
                 $test_name:ident,
                 $instr_name:ident,
-                target_val: $target_val:expr,
-                source_val: $source_val:expr,
+                target: ($target_register:ident, $target_val:expr),
+                source: ($source_register:ident, $source_val:expr),
                 result: $result:expr,
                 vf: $vf:literal
             ) => {
                 #[test]
                 fn $test_name() {
+                    use DataRegister::*;
+
                     let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
                     let instruction_bytes = <[u8; 2]>::from(Instruction::$instr_name {
-                        target_register: DataRegister::V3,
-                        source_register: DataRegister::V9,
+                        target_register: $target_register,
+                        source_register: $source_register,
                     });
                     program[0x200..=0x201].copy_from_slice(&instruction_bytes);
 
                     let mut data_registers = [0; 16];
-                    data_registers[DataRegister::V3 as u8 as usize] = $target_val;
-                    data_registers[DataRegister::V9 as u8 as usize] = $source_val;
+                    data_registers[$target_register as u8 as usize] = $target_val;
+                    data_registers[$source_register as u8 as usize] = $source_val;
 
                     let mut processor = Processor {
                         data_registers,
@@ -557,9 +559,9 @@ mod step {
                     processor.step().unwrap();
 
                     let mut expected_data_registers = [0; 16];
-                    expected_data_registers[DataRegister::V3 as u8 as usize] = $result;
-                    expected_data_registers[DataRegister::V9 as u8 as usize] = $source_val;
-                    expected_data_registers[DataRegister::VF as u8 as usize] = $vf;
+                    expected_data_registers[$target_register as u8 as usize] = $result;
+                    expected_data_registers[$source_register as u8 as usize] = $source_val;
+                    expected_data_registers[VF as u8 as usize] = $vf;
 
                     assert_eq!(
                         processor,
@@ -574,43 +576,48 @@ mod step {
             };
         }
 
-        generate_test!(or, OrAssign, target_val: 0b10101010, source_val: 0b11001010, result: 0b11101010, vf: 0);
-        generate_test!(and, AndAssign, target_val: 0b10101010, source_val: 0b11001010, result: 0b10001010, vf: 0);
-        generate_test!(xor, XorAssign, target_val: 0b10101010, source_val: 0b11001010, result: 0b01100000, vf: 0);
+        generate_test!(or, OrAssign, target: (V3, 0b10101010), source: (V9, 0b11001010), result: 0b11101010, vf: 0);
+        generate_test!(and, AndAssign, target: (V3, 0b10101010), source: (V9, 0b11001010), result: 0b10001010, vf: 0);
+        generate_test!(xor, XorAssign, target: (V3, 0b10101010), source: (V9, 0b11001010), result: 0b01100000, vf: 0);
 
         mod add {
             use super::*;
 
-            generate_test!(case_carry, AddAssign, target_val: !0, source_val: 1, result: 0, vf: 1);
-            generate_test!(case_no_carry, AddAssign, target_val: 3, source_val: 4, result: 7, vf: 0);
+            generate_test!(case_carry, AddAssign, target: (V3, !0), source: (V9, 1), result: 0, vf: 1);
+            generate_test!(case_no_carry, AddAssign, target: (V3, 3), source: (V9, 4), result: 7, vf: 0);
+            generate_test!(case_target_is_vf, AddAssign, target: (VF, 3), source: (V7, 4), result: 0, vf: 0);
         }
 
         mod sub {
             use super::*;
 
-            generate_test!(case_borrow, SubAssign, target_val: 0, source_val: 1, result: !0, vf: 0);
-            generate_test!(case_no_borrow, SubAssign, target_val: 7, source_val: 3, result: 4, vf: 1);
+            generate_test!(case_borrow, SubAssign, target: (V3, 0), source: (V9, 1), result: !0, vf: 0);
+            generate_test!(case_no_borrow, SubAssign, target: (V3, 7), source: (V9, 3), result: 4, vf: 1);
+            generate_test!(case_target_is_vf, SubAssign, target: (VF, 7), source: (V7, 3), result: 1, vf: 1);
         }
 
         mod rev_sub {
             use super::*;
 
-            generate_test!(case_borrow, RevSubAssign, target_val: 1, source_val: 0, result: !0, vf: 0);
-            generate_test!(case_no_borrow, RevSubAssign, target_val: 3, source_val: 7, result: 4, vf: 1);
+            generate_test!(case_borrow, RevSubAssign, target: (V3, 1), source: (V9, 0), result: !0, vf: 0);
+            generate_test!(case_no_borrow, RevSubAssign, target: (V3, 3), source: (V9, 7), result: 4, vf: 1);
+            generate_test!(case_target_is_vf, RevSubAssign, target: (VF, 3), source: (V7, 7), result: 1, vf: 1);
         }
 
         mod shr {
             use super::*;
 
-            generate_test!(case_old_lsb_set, ShrAssign, target_val: 0b111, source_val: 0b101, result: 0b10, vf: 1);
-            generate_test!(case_old_lsb_unset, ShrAssign, target_val: 0b111, source_val: 0b100, result: 0b10, vf: 0);
+            generate_test!(case_old_lsb_set, ShrAssign, target: (V3, 0b111), source: (V9, 0b101), result: 0b10, vf: 1);
+            generate_test!(case_old_lsb_unset, ShrAssign, target: (V3, 0b111), source: (V9, 0b100), result: 0b10, vf: 0);
+            generate_test!(case_target_is_vf, ShrAssign, target: (VF, 0b111), source: (V7, 0b100), result: 0, vf: 0);
         }
 
         mod shl {
             use super::*;
 
-            generate_test!(case_old_msb_set, ShlAssign, target_val: 0b1110_0000, source_val: 0b1010_0000, result: 0b0100_0000, vf: 1);
-            generate_test!(case_old_msb_unset, ShlAssign, target_val: 0b1110_0000, source_val: 0b0010_0000, result: 0b0100_0000, vf: 0);
+            generate_test!(case_old_msb_set, ShlAssign, target: (V3, 0b1110_0000), source: (V9, 0b1010_0000), result: 0b0100_0000, vf: 1);
+            generate_test!(case_old_msb_unset, ShlAssign, target: (V3, 0b1110_0000), source: (V9, 0b0010_0000), result: 0b0100_0000, vf: 0);
+            generate_test!(case_target_is_vf, ShlAssign, target: (VF, 0b1110_0000), source: (V7, 0b0010_0000), result: 0, vf: 0);
         }
     }
 
