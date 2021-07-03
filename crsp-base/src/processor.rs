@@ -442,6 +442,12 @@ impl Processor {
         self.key_states[key as u8 as usize] = state;
     }
 
+    pub const fn screen(
+        &self,
+    ) -> &[u8; Self::SCREEN_WIDTH_BYTES as usize * Self::SCREEN_HEIGHT as usize] {
+        &self.screen
+    }
+
     /// Draw byte to `screen` at position `byte_x*8` and `y`.
     /// Does not take `&mut self` so it can be called while iterating over a sprite in `self.memory`.
     ///
