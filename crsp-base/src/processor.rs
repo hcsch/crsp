@@ -143,6 +143,45 @@ impl PartialOffscreenDrawing {
     }
 }
 
+/// Skipping behavior for the processor.
+///
+/// Unsupported instructions that are not skipped will lead to an error being returned.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Skipping {
+    // Skip no unsupported instructions.
+    None,
+    // Skip [`Instruction::CallMachineSubroutine`].
+    CallMachineSubroutine,
+    // Skip unknown instructions
+    // (i.e. ones not specified as variants of [`Instruction`]).
+    Unknown,
+    // Skip all unsupported instructions.
+    // This skips both [`Instruction::CallMachineSubroutine`] and unknown ones.
+    AllUnsupported,
+}
+
+impl Default for Skipping {
+    fn default() -> Self {
+        Self::CallMachineSubroutine
+    }
+}
+
+impl Skipping {
+    pub fn should_skip_call_machine_subroutine(self) -> bool {
+        match self {
+            Self::CallMachineSubroutine | Self::AllUnsupported => true,
+            _ => false,
+        }
+    }
+
+    pub fn should_skip_unknown(self) -> bool {
+        match self {
+            Self::Unknown | Self::AllUnsupported => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum InstructionTiming {
     TotalTime { duration: Duration },
@@ -257,7 +296,7 @@ pub struct Processor {
     key_states: [KeyState; std::mem::variant_count::<Key>()],
     waiting_for_keypress: KeyWaitingState,
     partial_offscreen_drawing: PartialOffscreenDrawing,
-    skip_call_machine_subroutine: bool,
+    skipping: Skipping,
 }
 
 impl Default for Processor {
@@ -445,7 +484,25 @@ impl Processor {
             self.memory[self.program_counter as usize + 1],
         ];
 
-        let instruction = Instruction::try_from(instruction_nibbles)?;
+        let instruction = match Instruction::try_from(instruction_nibbles) {
+            Ok(instruction) => instruction,
+            Err(error) => {
+                if !self.skipping.should_skip_unknown() {
+                    return Err(error.into());
+                } else {
+                    self.program_counter = self
+                        .program_counter
+                        .wrapping_add(std::mem::size_of::<u16>() as u16);
+
+                    return Ok(StepOutcome {
+                        instruction_timing: Duration::from_micros(0).into(),
+                        screen_updated: false,
+                        sound_timer_updated: false,
+                        delay_timer_updated: false,
+                    });
+                }
+            }
+        };
 
         let mut was_control_flow_instr = false;
         let mut screen_updated = false;
@@ -468,7 +525,7 @@ impl Processor {
                 was_control_flow_instr = true;
             }
             Instruction::CallMachineSubroutine { .. } => {
-                if !self.skip_call_machine_subroutine {
+                if !self.skipping.should_skip_call_machine_subroutine() {
                     return Err(ProcessorError::CallMachineSubroutineUnsupported {
                         program_counter: self.program_counter,
                     });
@@ -961,7 +1018,7 @@ impl ProcessorBuilder {
                 key_states: [KeyState::default(); 16],
                 waiting_for_keypress: KeyWaitingState::default(),
                 partial_offscreen_drawing: PartialOffscreenDrawing::default(),
-                skip_call_machine_subroutine: true,
+                skipping: Skipping::default(),
             },
             font: Font::default(),
         }
@@ -1000,10 +1057,11 @@ impl ProcessorBuilder {
         self
     }
 
-    /// Make the processor skip [`Instruction::CallMachineSubroutine`] instructions
-    /// instead of returning an error.
-    pub fn skip_call_machine_subroutine(mut self) -> Self {
-        self.processor.skip_call_machine_subroutine = true;
+    /// Set the processor's skipping behavior of unsupported instructions.
+    /// Unsupported instructions that are not skipped cause an error to be returned.
+    /// See also [`Skipping`].
+    pub fn skipping(mut self, skipping: Skipping) -> Self {
+        self.processor.skipping = skipping;
         self
     }
 

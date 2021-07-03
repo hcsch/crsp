@@ -33,6 +33,57 @@ mod step {
         };
     }
 
+    mod instr_unknown {
+        use super::*;
+
+        #[test]
+        fn case_skip() {
+            let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
+            let instruction_bytes = [0xFF, 0xFF];
+            program[0x200..=0x201].copy_from_slice(&instruction_bytes);
+
+            let mut processor = Processor {
+                memory: program.clone(),
+                program_counter: 0x200,
+                skipping: Skipping::Unknown,
+                ..Processor::default()
+            };
+
+            processor.step().unwrap();
+
+            assert_eq!(
+                processor,
+                Processor {
+                    memory: program,
+                    program_counter: 0x202,
+                    skipping: Skipping::Unknown,
+                    ..Processor::default()
+                }
+            );
+        }
+
+        #[test]
+        fn case_err() {
+            let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
+            let instruction_bytes = [0xFF, 0xFF];
+            program[0x200..=0x201].copy_from_slice(&instruction_bytes);
+
+            let mut processor = Processor {
+                memory: program.clone(),
+                program_counter: 0x200,
+                skipping: Skipping::None,
+                ..Processor::default()
+            };
+
+            assert_eq!(
+                processor.step(),
+                Err(ProcessorError::InvalidInstructionNibblesError(
+                    Instruction::try_from([0xFF, 0xFF]).unwrap_err()
+                )) as Result<StepOutcome, _>
+            );
+        }
+    }
+
     mod instr_call_machine_subroutine {
         use super::*;
 
@@ -47,7 +98,7 @@ mod step {
             let mut processor = Processor {
                 memory: program.clone(),
                 program_counter: 0x200,
-                skip_call_machine_subroutine: true,
+                skipping: Skipping::CallMachineSubroutine,
                 ..Processor::default()
             };
 
@@ -58,7 +109,7 @@ mod step {
                 Processor {
                     memory: program,
                     program_counter: 0x202,
-                    skip_call_machine_subroutine: true,
+                    skipping: Skipping::CallMachineSubroutine,
                     ..Processor::default()
                 }
             );
@@ -75,7 +126,7 @@ mod step {
             let mut processor = Processor {
                 memory: program.clone(),
                 program_counter: 0x200,
-                skip_call_machine_subroutine: false,
+                skipping: Skipping::None,
                 ..Processor::default()
             };
 
