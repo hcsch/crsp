@@ -1,6 +1,6 @@
 [package]
 name = "crsp"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2018"
 description = "A simple CHIP-8 emulator"
 license = "MIT"
@@ -9,7 +9,7 @@ keywords = ["emulator", "chip-8", "gui"]
 categories = ["emulators"]
 
 [dependencies]
-crsp-base = { version = "0.1.0", path = "../crsp-base" }
+crsp-base = { version = "0.2.0", path = "../crsp-base" }
 winit = "0.25.0"
 pixels = "0.4.0"
 clap = "3.0.0-beta.2"
