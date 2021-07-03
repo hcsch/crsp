@@ -511,7 +511,7 @@ impl Processor {
         let mut delay_timer_updated = false;
 
         match instruction {
-            Instruction::ClearDisplay => {
+            Instruction::ClearScreen => {
                 self.screen.fill(0);
 
                 screen_updated = true;
@@ -791,17 +791,17 @@ impl Processor {
                 // actual waiting is done by the caller of step()
                 // and is signaled by the instruction_timing of the StepOutcome
             }
-            Instruction::SetDelayTimer { source_register } => {
+            Instruction::AssignToDelayTimer { source_register } => {
                 self.delay_timer = self.get_register(source_register);
 
                 delay_timer_updated = true;
             }
-            Instruction::SetSoundTimer { source_register } => {
+            Instruction::AssignToSoundTimer { source_register } => {
                 self.sound_timer = self.get_register(source_register);
 
                 sound_timer_updated = true;
             }
-            Instruction::AddAssignI { source_register } => {
+            Instruction::AddAssignToI { source_register } => {
                 self.address_register = self
                     .address_register
                     .wrapping_add(self.get_register(source_register) as u16)
@@ -890,7 +890,7 @@ impl Processor {
     fn instruction_timing(&self, instruction: Instruction) -> InstructionTiming {
         match instruction {
             Instruction::CallMachineSubroutine { .. } => Duration::from_micros(0).into(), // unsupported
-            Instruction::ClearDisplay => Duration::from_micros(109).into(),
+            Instruction::ClearScreen => Duration::from_micros(109).into(),
             Instruction::Return
             | Instruction::Jump { .. }
             | Instruction::CallSubroutine { .. }
@@ -960,8 +960,8 @@ impl Processor {
             Instruction::AssignConst { .. } => Duration::from_micros(27).into(),
             Instruction::AddAssignConst { .. }
             | Instruction::AssignDelayTimerVal { .. }
-            | Instruction::SetDelayTimer { .. }
-            | Instruction::SetSoundTimer { .. } => Duration::from_micros(45).into(),
+            | Instruction::AssignToDelayTimer { .. }
+            | Instruction::AssignToSoundTimer { .. } => Duration::from_micros(45).into(),
             Instruction::Assign { .. }
             | Instruction::OrAssign { .. }
             | Instruction::AndAssign { .. }
@@ -975,7 +975,7 @@ impl Processor {
             Instruction::AssignRandomMasked { .. } => Duration::from_micros(164).into(),
             Instruction::DrawSprite { .. } => Duration::from_micros(22_734).into(), // ignores intricacies, simply the average time
             Instruction::WaitForKeyPress { .. } => InstructionTiming::WaitForKeyPress,
-            Instruction::AddAssignI { .. } => Duration::from_micros(86).into(), // ignores page boundaries of original chip
+            Instruction::AddAssignToI { .. } => Duration::from_micros(86).into(), // ignores page boundaries of original chip
             Instruction::AssignHexCharSpriteAddrToI { .. } => Duration::from_micros(91).into(),
             Instruction::StoreBCD { source_register } => {
                 let val = self.get_register(source_register);

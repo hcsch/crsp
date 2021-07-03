@@ -140,9 +140,9 @@ mod step {
     }
 
     #[test]
-    fn instr_clear_display() {
+    fn instr_clear_screen() {
         let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
-        let instruction_bytes = <[u8; 2]>::from(Instruction::ClearDisplay);
+        let instruction_bytes = <[u8; 2]>::from(Instruction::ClearScreen);
         program[0x200..=0x201].copy_from_slice(&instruction_bytes);
 
         let mut screen =
@@ -1213,9 +1213,9 @@ mod step {
     }
 
     #[test]
-    fn instr_set_delay_timer() {
+    fn instr_assign_to_delay_timer() {
         let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
-        let instruction_bytes = <[u8; 2]>::from(Instruction::SetDelayTimer {
+        let instruction_bytes = <[u8; 2]>::from(Instruction::AssignToDelayTimer {
             source_register: DataRegister::V8,
         });
         program[0x200..=0x201].copy_from_slice(&instruction_bytes);
@@ -1244,9 +1244,9 @@ mod step {
     }
 
     #[test]
-    fn instr_set_sound_timer() {
+    fn instr_assign_to_sound_timer() {
         let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
-        let instruction_bytes = <[u8; 2]>::from(Instruction::SetSoundTimer {
+        let instruction_bytes = <[u8; 2]>::from(Instruction::AssignToSoundTimer {
             source_register: DataRegister::V8,
         });
         program[0x200..=0x201].copy_from_slice(&instruction_bytes);
@@ -1274,13 +1274,13 @@ mod step {
         );
     }
 
-    mod instr_add_assign_i {
+    mod instr_add_assign_to_i {
         use super::*;
 
         #[test]
         fn case_carry() {
             let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
-            let instruction_bytes = <[u8; 2]>::from(Instruction::AddAssignI {
+            let instruction_bytes = <[u8; 2]>::from(Instruction::AddAssignToI {
                 source_register: DataRegister::V0,
             });
             program[0x200..=0x201].copy_from_slice(&instruction_bytes);
@@ -1314,7 +1314,7 @@ mod step {
         #[test]
         fn case_no_carry() {
             let mut program = [0; Processor::MAX_USABLE_MEMORY_LEN];
-            let instruction_bytes = <[u8; 2]>::from(Instruction::AddAssignI {
+            let instruction_bytes = <[u8; 2]>::from(Instruction::AddAssignToI {
                 source_register: DataRegister::V0,
             });
             program[0x200..=0x201].copy_from_slice(&instruction_bytes);

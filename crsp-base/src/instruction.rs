@@ -225,8 +225,8 @@ define_instruction! {
     /// and <https://en.wikipedia.org/wiki/CHIP-8#Opcode_table> (CC-BY-SA 3.0, Wikipedia Authors).
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
     pub enum Instruction {
-        /// Clear the display.
-        ClearDisplay = (0x0, 0x0, 0xE, 0x0),
+        /// Clear the screen.
+        ClearScreen = (0x0, 0x0, 0xE, 0x0),
         /// Return from a subroutine.
         Return = (0x0, 0x0, 0xE, 0xE),
         /// Calls the machine code subroutine at the `target_address`.
@@ -387,15 +387,15 @@ define_instruction! {
         /// Wait until a key is pressed and store the value
         /// corresponding the key in `target_register`
         WaitForKeyPress { target_register: DataRegister } = (0xF, target_register, 0x0, 0xA),
-        /// Set the value of the delay timer to the value in `source_register`.
-        SetDelayTimer { source_register: DataRegister } = (0xF, source_register, 0x1, 0x5),
-        /// Set the value of the sound timer to the value in `source_register`.
-        SetSoundTimer { source_register: DataRegister } = (0xF, source_register, 0x1, 0x8),
+        /// Assign the value in `source_register` to the delay timer.
+        AssignToDelayTimer { source_register: DataRegister } = (0xF, source_register, 0x1, 0x5),
+        /// Assign the value in `source_register` to the sound timer.
+        AssignToSoundTimer { source_register: DataRegister } = (0xF, source_register, 0x1, 0x8),
         /// Add the value in `source_register` to the value
         /// in the special address register `I` and store the result in `I`.
         ///
         /// [`DataRegister::VF`] is not altered.
-        AddAssignI { source_register: DataRegister } = (0xF, source_register, 0x1, 0xE),
+        AddAssignToI { source_register: DataRegister } = (0xF, source_register, 0x1, 0xE),
         /// Assign the address of the built-in hex char sprite
         /// corresponding to the value in `sprite_register`
         /// to the special address register `I`.
