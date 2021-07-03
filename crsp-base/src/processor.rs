@@ -969,18 +969,15 @@ impl ProcessorBuilder {
 
     // TODO: consider taking an iterator as input
     /// Copies the program into the processors memory
-    /// in such that the first element is at address 0x0.
-    /// This way the index of bytes in the program represents the address in memory.
-    /// IMPORTANT: The first [`Font::LEN`] elements are overwritten with sprite font data
-    ///            and are therefore not usable for program data.
+    /// in such that the first byte is at address 0x200.
     pub fn program(mut self, program: &[u8]) -> Result<Self, ProcessorBuilderError> {
-        if program.len() > Processor::MAX_USABLE_MEMORY_LEN {
+        if program.len() > Processor::MAX_USABLE_MEMORY_LEN - 0x200 {
             return Err(ProcessorBuilderError::ProgramExceedsUsableMemoryLen {
                 program_len: program.len(),
             });
         }
 
-        self.processor.memory[Font::LEN..program.len()].copy_from_slice(program);
+        self.processor.memory[0x200..(0x200 + program.len())].copy_from_slice(&program);
 
         Ok(self)
     }
