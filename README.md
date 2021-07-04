@@ -1,11 +1,45 @@
 # crsp (WIP)
+
+[![crates.io](https://img.shields.io/crates/v/crsp?style=flat-square)](https://crates.io/crates/crsp)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/hcsch/crsp/blob/master/LICENSE)
+
 A CHIP-8 emulator written in Rust.
 
 ## WIP
-So far only headless processor emulation code has been written
-(in [crsp-base](crsp-base))
-and that is also still lacking some timing, sound and screen related code.
-The main crate [crsp](crsp) will contain code for a GUI binary for this emulator.
+The emulator already supports running a CHIP-8 ROM specified as a CLI argument,
+but some aspects of the emulator still need to be made configurable.
+
+So far there is also no option for configuring the emulator graphically
+(e.g. loading a ROM through a file chooser dialog, displaying errors with recovery options, etc.).
+
+## Running
+
+```sh
+cargo run --release -- <rom-file>
+```
+
+For a more detailed description see the output of
+```sh
+cargo run -- --help
+```
+
+## Logs / Traces
+
+The emulator uses the [tracing](https://crates.io/crates/tracing)
+and [tracing-subscriber](https://crates.io/crates/tracing-subscriber)
+crates for logging/tracing.
+
+To have the emulator print events to stdout at various levels of verbosity,
+run it with the environment variable `RUST_LOG` set to one of
+`error`, `warn`, `info`, `debug` and `trace`, or use a more complex filter as described
+[here](https://docs.rs/tracing-subscriber/0.2.19/tracing_subscriber/filter/struct.EnvFilter.html).
+Errors and warnings will be printed to stdout by default.
+
+Example:
+```sh
+RUST_LOG="crsp=debug,crsp-base=debug" cargo run --release -- <rom-file>
+```
+This will print all events with level `debug` or higher from the `crsp` and `crsp-base` crates.
 
 ## Naming
 (CHIP(-8) → crisp) + Rust (rs) = crsp
