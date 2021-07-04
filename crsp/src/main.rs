@@ -5,6 +5,7 @@ use crsp_base::processor::{
     ControlEvent, Key, KeyState, PartialOffscreenDrawing, Processor, ProcessorEvent,
 };
 use pixels::{Pixels, SurfaceTexture};
+use rodio::{OutputStream, Sink};
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::{self, fmt::format::FmtSpan, EnvFilter};
 use winit::{
@@ -12,6 +13,10 @@ use winit::{
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
 };
+
+use crate::tone::EmulatorTone;
+
+mod tone;
 
 // TODO: make colors configurable (at runtime)
 /// RGB color for the pixel on-state
@@ -121,6 +126,14 @@ fn main() -> Result<(), pixels::Error> {
         surface_texture,
     )?;
 
+    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+    let sink = Sink::try_new(&stream_handle).unwrap();
+    sink.set_volume(0.5);
+    sink.pause();
+
+    let sine_source = EmulatorTone::new(440.0);
+    sink.append(sine_source);
+
     let program = &std::fs::read(cli_opts.rom_file).unwrap();
     let processor = Processor::builder()
         //.skip_call_machine_subroutine()
@@ -165,6 +178,8 @@ fn main() -> Result<(), pixels::Error> {
                 WindowEvent::CloseRequested => {
                     // dropping this will make the processor stop
                     drop(control_event_sender.take().unwrap());
+                    // stop audio
+                    sink.stop();
                     // wait for processor to stop
                     let processor_runner_result = processor_join_handle
                         .take()
@@ -226,7 +241,8 @@ fn main() -> Result<(), pixels::Error> {
                 window.request_redraw();
             }
             Event::UserEvent(ProcessorEvent::WaitForKeyPress) => waiting_for_key_press = true,
-            Event::UserEvent(ProcessorEvent::SoundRequest { duration: _ }) => (), // TODO: actually emit sound
+            Event::UserEvent(ProcessorEvent::StartPlayingSound) => sink.play(),
+            Event::UserEvent(ProcessorEvent::StopPlayingSound) => sink.pause(),
             Event::RedrawRequested(_) => {
                 pixels
                     .get_frame()

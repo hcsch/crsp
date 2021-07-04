@@ -12,6 +12,7 @@ categories = ["emulators"]
 crsp-base = { version = "0.2.0", path = "../crsp-base" }
 winit = "0.25.0"
 pixels = "0.4.0"
+rodio = "0.14.0"
 clap = "3.0.0-beta.2"
 tracing = "0.1.26"
 tracing-subscriber = "0.2.19"

@@ -209,9 +209,8 @@ pub enum ProcessorEvent {
         new_screen:
             [u8; Processor::SCREEN_WIDTH_BYTES as usize * Processor::SCREEN_HEIGHT as usize],
     },
-    SoundRequest {
-        duration: Duration,
-    },
+    StartPlayingSound,
+    StopPlayingSound,
     WaitForKeyPress,
     ErrorEncountered {
         error: ProcessorError,
@@ -281,6 +280,9 @@ impl Processor {
     ) -> Result<Processor, ProcessorError> {
         let mut delay_duration = Duration::from_secs(0);
         let mut last_delay_update = Instant::now();
+
+        let mut sound_end_instant: Option<Instant> = None;
+
         loop {
             let span = trace_span!("run loop iteration");
             let _guard = span.enter();
@@ -308,6 +310,26 @@ impl Processor {
                 .as_secs_f64()
                 * 60.0) as u8;
 
+            match sound_end_instant {
+                Some(end_instant) => {
+                    if let Some(duration) = end_instant.checked_duration_since(Instant::now()) {
+                        self.sound_timer = (duration.as_secs_f64() * 60.0) as u8;
+                    } else {
+                        // sound_end_instant has passed, stop sound
+                        if let Err(_) =
+                            processor_event_sender.send(ProcessorEvent::StopPlayingSound)
+                        {
+                            debug!("processor_event_receiver dropped, stopping processor::run");
+                            break;
+                        }
+
+                        self.sound_timer = 0;
+                        sound_end_instant = None;
+                    }
+                }
+                None => (),
+            };
+
             let outcome = match self.step() {
                 Ok(outcome) => outcome,
                 Err(error) => {
@@ -331,9 +353,9 @@ impl Processor {
             }
 
             if outcome.sound_timer_updated {
-                if let Err(_) = processor_event_sender.send(ProcessorEvent::SoundRequest {
-                    duration: Duration::from_secs_f64(self.sound_timer as f64 / 60.0),
-                }) {
+                sound_end_instant =
+                    Some(Instant::now() + Duration::from_secs_f64(self.sound_timer as f64 / 60.0));
+                if let Err(_) = processor_event_sender.send(ProcessorEvent::StartPlayingSound) {
                     debug!("processor_event_receiver dropped, stopping processor::run");
                     break;
                 }
