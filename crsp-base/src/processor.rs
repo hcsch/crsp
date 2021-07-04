@@ -340,14 +340,12 @@ impl Processor {
             }
 
             if outcome.delay_timer_updated {
-                delay_duration = Duration::from_secs_f64(self.delay_timer as f64 / 60.0); // / 500;
+                delay_duration = Duration::from_secs_f64(self.delay_timer as f64 / 60.0);
                 last_delay_update = Instant::now();
             }
 
             match outcome.instruction_timing {
                 InstructionTiming::TotalTime { duration } => {
-                    // let duration = duration / 500;
-
                     let elapsed = start.elapsed();
                     let delta = duration.checked_sub(elapsed);
                     if let Some(delta) = delta {
