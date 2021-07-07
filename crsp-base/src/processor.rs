@@ -14,20 +14,27 @@ use crate::{
     instruction::{Instruction, InvalidInstructionNibblesError},
 };
 
+mod call_stack;
 mod data_register;
 mod key;
 #[cfg(test)]
 mod test;
 
+pub use call_stack::CallStack;
 pub use data_register::DataRegister;
 pub use key::{Key, KeyState};
+
+use self::call_stack::CallStackCapacityExceededError;
 
 #[derive(Debug, PartialEq, Eq, Error)]
 pub enum ProcessorError {
     #[error("an out of bounds memory access was requested at {program_counter:X}")]
     OutOfBoundsMemoryAccess { program_counter: u16 },
-    #[error("the call request at {program_counter:X} exceeds the maximum call stack size")]
-    MaxCallStackSizeExceeded { program_counter: u16 },
+    #[error("the call request at {program_counter:X} exceeds the call stack capacity")]
+    CallStackCapacityExceeded {
+        program_counter: u16,
+        source: CallStackCapacityExceededError,
+    },
     #[error("return was requested at {program_counter:X} with an empty call stack")]
     ReturnWithEmptyCallStack { program_counter: u16 },
     #[error("the hex char sprite address was requested for a non-hex-char (greater than 0xF) id {requested_sprite_id:X} at {program_counter:X}")]
@@ -44,52 +51,6 @@ pub enum ProcessorError {
     CallMachineSubroutineUnsupported { program_counter: u16 },
     #[error(transparent)]
     InvalidInstructionNibblesError(#[from] InvalidInstructionNibblesError),
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct CallStack {
-    vec: Vec<u16>,
-    max_len: usize,
-}
-
-impl CallStack {
-    pub fn new_with_max_len(max_len: usize) -> Self {
-        Self {
-            vec: Vec::with_capacity(max_len),
-            max_len,
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.vec.len()
-    }
-
-    pub fn pop(&mut self) -> Option<u16> {
-        self.vec.pop()
-    }
-
-    #[must_use]
-    pub fn push(&mut self, address: u16) -> bool {
-        if self.vec.len() < self.max_len {
-            self.vec.push(address);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl From<Vec<u16>> for CallStack {
-    fn from(vec: Vec<u16>) -> Self {
-        let max_len = vec.capacity();
-        Self { vec, max_len }
-    }
-}
-
-impl Default for CallStack {
-    fn default() -> Self {
-        Self::new_with_max_len(128)
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -559,12 +520,13 @@ impl Processor {
                 was_control_flow_instr = true;
             }
             Instruction::CallSubroutine { target_address } => {
-                if !self.call_stack.push(
+                if let Err(error) = self.call_stack.push(
                     self.program_counter
                         .wrapping_add(std::mem::size_of::<u16>() as u16),
                 ) {
-                    return Err(ProcessorError::MaxCallStackSizeExceeded {
+                    return Err(ProcessorError::CallStackCapacityExceeded {
                         program_counter: self.program_counter,
+                        source: error,
                     });
                 };
                 self.program_counter = target_address.into();

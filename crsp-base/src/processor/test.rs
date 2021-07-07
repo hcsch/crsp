@@ -21,18 +21,6 @@ mod step {
         );
     }
 
-    macro_rules! callstack {
-        ($($val:expr),*$(,)?) => {
-            {
-                let vec = vec![$($val),*];
-                CallStack {
-                    vec,
-                    ..CallStack::default()
-                }
-            }
-        };
-    }
-
     mod instr_unknown {
         use super::*;
 
@@ -183,7 +171,7 @@ mod step {
             let mut processor = Processor {
                 memory: program.clone(),
                 program_counter: 0x204,
-                call_stack: callstack![0x202],
+                call_stack: vec![0x202].into(),
                 ..Processor::default()
             };
 
@@ -258,6 +246,7 @@ mod step {
 
             let mut processor = Processor {
                 memory: program.clone(),
+                call_stack: CallStack::with_capacity(1),
                 ..Processor::default()
             };
 
@@ -268,7 +257,7 @@ mod step {
                 Processor {
                     memory: program,
                     program_counter: 0x208,
-                    call_stack: callstack![0x202],
+                    call_stack: vec![0x202].into(), // instruction after call
                     ..Processor::default()
                 }
             );
@@ -284,14 +273,17 @@ mod step {
 
             let mut processor = Processor {
                 memory: program.clone(),
-                call_stack: CallStack::new_with_max_len(0),
+                call_stack: CallStack::with_capacity(0),
                 ..Processor::default()
             };
 
             assert_eq!(
                 processor.step(),
-                Err(ProcessorError::MaxCallStackSizeExceeded {
+                Err(ProcessorError::CallStackCapacityExceeded {
                     program_counter: 0x200,
+                    source: CallStackCapacityExceededError {
+                        address_not_pushed: 0x202, // instruction after call
+                    },
                 }) as Result<StepOutcome, _>,
             );
         }
