@@ -137,7 +137,7 @@ macro_rules! instruction_to_u8x2_match_arm_code {
 
 #[derive(Debug, PartialEq, Eq, Error)]
 #[error("invalid instruction nibbles `{0:X?}`")]
-pub struct InvalidInstructionNibblesError([u8; 2]);
+pub struct InvalidInstructionNibblesError(pub [u8; 2]);
 
 #[derive(Debug, PartialEq, Eq, Error)]
 #[error("out of bounds field `{field_name}` in instruction `{instruction:?}`, must be smaller than {max_value}")]

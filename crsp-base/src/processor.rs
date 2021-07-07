@@ -49,8 +49,11 @@ pub enum ProcessorError {
     },
     #[error("call to machine subroutine requested at {program_counter:X}, this is unsupported")]
     CallMachineSubroutineUnsupported { program_counter: u16 },
-    #[error(transparent)]
-    InvalidInstructionNibblesError(#[from] InvalidInstructionNibblesError),
+    #[error("encountered invalid instruction nibbles at {program_counter:X}")]
+    InvalidInstructionNibbles {
+        program_counter: u16,
+        source: InvalidInstructionNibblesError,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -468,7 +471,10 @@ impl Processor {
             Ok(instruction) => instruction,
             Err(error) => {
                 if !self.skipping.should_skip_unknown() {
-                    return Err(error.into());
+                    return Err(ProcessorError::InvalidInstructionNibbles {
+                        program_counter: self.program_counter,
+                        source: error,
+                    });
                 } else {
                     self.program_counter = self
                         .program_counter

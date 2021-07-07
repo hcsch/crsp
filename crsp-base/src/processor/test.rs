@@ -65,9 +65,10 @@ mod step {
 
             assert_eq!(
                 processor.step(),
-                Err(ProcessorError::InvalidInstructionNibblesError(
-                    Instruction::try_from([0xFF, 0xFF]).unwrap_err()
-                )) as Result<StepOutcome, _>
+                Err(ProcessorError::InvalidInstructionNibbles {
+                    program_counter: 0x200,
+                    source: InvalidInstructionNibblesError([0xFF, 0xFF]),
+                }) as Result<StepOutcome, _>
             );
         }
     }
