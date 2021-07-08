@@ -139,14 +139,6 @@ macro_rules! instruction_to_u8x2_match_arm_code {
 #[error("invalid instruction nibbles `{0:X?}`")]
 pub struct InvalidInstructionNibblesError(pub [u8; 2]);
 
-#[derive(Debug, PartialEq, Eq, Error)]
-#[error("out of bounds field `{field_name}` in instruction `{instruction:?}`, must be smaller than {max_value}")]
-pub struct OOBInstructionFieldError {
-    instruction: Instruction,
-    field_name: &'static str,
-    max_value: usize,
-}
-
 macro_rules! define_instruction {
     (
         $(#[$enum_attribute:meta])*
