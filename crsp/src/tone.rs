@@ -45,7 +45,7 @@ impl Iterator for EmulatorTone {
             .copied()
             .enumerate()
             .map(|(harmonic, max_amplitude)| {
-                (2.0 * std::f32::consts::PI * self.frequency * harmonic as f32 * time).sin()
+                (2.0 * std::f32::consts::PI * self.frequency * (harmonic + 1) as f32 * time).sin()
                     * max_amplitude
             })
             .sum::<f32>()
