@@ -1,8 +1,10 @@
 use std::{path::PathBuf, thread};
 
 use clap::{crate_description, crate_version, AppSettings, Clap};
-use crsp_base::processor::{
-    ControlEvent, Key, KeyState, PartialOffscreenDrawing, Processor, ProcessorEvent,
+use crsp_base::{
+    self,
+    processor::{ControlEvent, Key, KeyState, Processor, ProcessorEvent},
+    screen::PartialOffscreenDrawing,
 };
 use pixels::{Pixels, SurfaceTexture};
 use rodio::{OutputStream, Sink};
@@ -147,7 +149,7 @@ fn main() -> Result<(), pixels::Error> {
         .program(&program)
         .unwrap()
         .build();
-    let mut screen = processor.screen().clone();
+    let mut screen = processor.screen_pixel_data().clone();
     let (control_event_sender, processor_event_receiver, processor_join_handle) = processor.start();
 
     let mut control_event_sender = Some(control_event_sender);
