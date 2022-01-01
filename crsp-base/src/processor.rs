@@ -12,18 +12,17 @@ use tracing::{debug, error, trace, trace_span, warn, Level};
 use crate::{
     builtin_sprites::font_4x5::Font,
     instruction::{Instruction, InvalidInstructionNibblesError},
+    key::{Key, KeyState},
     screen::{PartialOffscreenDrawing, Screen},
 };
 
 mod call_stack;
 mod data_register;
-mod key;
 #[cfg(test)]
 mod test;
 
 pub use call_stack::CallStack;
 pub use data_register::DataRegister;
-pub use key::{Key, KeyState};
 
 use self::call_stack::CallStackCapacityExceededError;
 

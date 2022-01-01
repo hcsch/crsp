@@ -2,8 +2,8 @@ use std::{path::PathBuf, thread};
 
 use clap::{crate_description, crate_version, AppSettings, Clap};
 use crsp_base::{
-    self,
-    processor::{ControlEvent, Key, KeyState, Processor, ProcessorEvent},
+    key::{Key, KeyState},
+    processor::{ControlEvent, Processor, ProcessorEvent},
     screen::PartialOffscreenDrawing,
 };
 use pixels::{Pixels, SurfaceTexture};

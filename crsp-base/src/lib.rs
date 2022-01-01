@@ -2,6 +2,7 @@
 
 mod builtin_sprites;
 pub mod instruction;
+pub mod key;
 mod nibble_ints;
 pub mod processor;
 pub mod screen;
