@@ -33,11 +33,11 @@ impl U4 {
     }
 
     pub const fn from_u8(val: u8, nibble: U8Nibble) -> Self {
-        U4((val >> (4 * (nibble as u8))) & 0b1111)
+        Self((val >> (4 * (nibble as u8))) & 0b1111)
     }
 
     pub const unsafe fn from_u8_unchecked(val: u8) -> Self {
-        U4(val)
+        Self(val)
     }
 }
 
@@ -45,12 +45,12 @@ impl TryFrom<u8> for U4 {
     type Error = UpperBoundExceededError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value <= U4::MAX.into() {
-            Ok(U4(value))
+        if value <= Self::MAX.into() {
+            Ok(Self(value))
         } else {
             Err(UpperBoundExceededError {
                 value: value as usize,
-                max_value: u8::from(U4::MAX) as usize,
+                max_value: u8::from(Self::MAX) as usize,
             })
         }
     }
@@ -73,7 +73,7 @@ impl U12 {
     }
 
     pub const unsafe fn from_u16_unchecked(val: u16) -> Self {
-        U12(val)
+        Self(val)
     }
 }
 
@@ -81,12 +81,12 @@ impl TryFrom<u16> for U12 {
     type Error = UpperBoundExceededError;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
-        if value <= U12::MAX.into() {
-            Ok(U12(value))
+        if value <= Self::MAX.into() {
+            Ok(Self(value))
         } else {
             Err(UpperBoundExceededError {
                 value: value as usize,
-                max_value: u16::from(U12::MAX) as usize,
+                max_value: u16::from(Self::MAX) as usize,
             })
         }
     }
