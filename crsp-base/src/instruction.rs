@@ -13,7 +13,6 @@ use crate::{
 /// If given a constant instead of an identifier, do nothing.
 macro_rules! maybe_extract_instruction_nibbles_into_var {
     ($instruction:ident, $target:ident, byte: $byte:literal, $nibble:expr) => {
-        // SAFETY: bit-masked to be below U4::MAX (0b1111)
         let $target: U4 = U4::from_u8($instruction[$byte], $nibble);
     };
     ($instruction:ident, $constant:literal, byte: $_byte:literal, $_nibble:expr) => {};
