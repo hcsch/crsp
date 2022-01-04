@@ -10,7 +10,7 @@ use thiserror::Error;
 use tracing::{debug, error, trace, trace_span, warn, Level};
 
 use crate::{
-    builtin_sprites::font_4x5::Font,
+    font::Font,
     instruction::{Instruction, InvalidInstructionNibblesError},
     key::{Key, KeyState},
     screen::{PartialOffscreenDrawing, Screen},

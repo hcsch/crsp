@@ -1,6 +1,6 @@
 #![feature(variant_count, step_trait, array_chunks)]
 
-mod builtin_sprites;
+mod font;
 pub mod instruction;
 pub mod key;
 mod nibble_ints;
