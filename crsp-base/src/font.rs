@@ -7,24 +7,24 @@ macro_rules! pixel_to_bit {
     };
 }
 
-macro_rules! make_giant_array {
-    ($($elem:expr,)*) => {
-        [
-            $($elem),*
-        ]
-    };
-}
-
 macro_rules! sprite_4x5_font {
-    ($($(($pixel0:tt $pixel1:tt $pixel2:tt $pixel3:tt))* ------)*) => {
-        make_giant_array![
+    (
+        $(
             $(
-                    $(
-                        (pixel_to_bit!($pixel0) << 7
-                            & pixel_to_bit!($pixel1) << 6
-                            & pixel_to_bit!($pixel2) << 5
-                            & pixel_to_bit!($pixel3) << 4),
-                    )*
+                ($pixel0:tt $pixel1:tt $pixel2:tt $pixel3:tt)
+            )*
+            ------
+        )*
+    ) => {
+        [
+            $(
+                $(
+                    // Shift pixels into high nibble / left half of the sprite.
+                    (pixel_to_bit!($pixel0) << 7
+                        & pixel_to_bit!($pixel1) << 6
+                        & pixel_to_bit!($pixel2) << 5
+                        & pixel_to_bit!($pixel3) << 4),
+                )*
             )*
         ]
     };
